@@ -1,4 +1,5 @@
 import type { MemberProfile } from '../data/member'
+import { Bell, ChevronDown } from 'lucide-react'
 
 interface NavBarProps {
   member: MemberProfile | null
@@ -7,7 +8,7 @@ interface NavBarProps {
   onProfile: () => void
 }
 
-export default function NavBar({ member, onLogin, onSignUp, onProfile }: NavBarProps) {
+export function NavBar({ member, onLogin, onSignUp, onProfile }: NavBarProps) {
   return (
     <header className="flex items-center justify-between py-6 pb-8 md:pb-12">
       <a href="/" className="text-2xl font-semibold tracking-tight no-underline">
@@ -21,15 +22,12 @@ export default function NavBar({ member, onLogin, onSignUp, onProfile }: NavBarP
             className="grid size-10 cursor-pointer place-items-center rounded-full border border-stone-200 bg-white text-stone-500 sm:size-12"
             aria-label="Notifications"
           >
-            <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M10 21h4" strokeLinecap="round" />
-            </svg>
+            <Bell className="size-5" strokeWidth={1.7} aria-hidden="true" />
           </button>
           <button type="button" className="flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 font-medium text-stone-700" onClick={onProfile}>
             <img src={member.avatar} alt="" className="size-10 rounded-full object-cover sm:size-12" />
             <span className="hidden sm:inline">{member.name}</span>
-            <span aria-hidden="true">⌄</span>
+            <ChevronDown className="size-4" aria-hidden="true" />
           </button>
         </div>
       ) : (

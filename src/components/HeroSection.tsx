@@ -6,7 +6,7 @@ interface HeroSectionProps {
   onSelectArticle: (id: number) => void
 }
 
-export default function HeroSection({ articles, onSelectArticle }: HeroSectionProps) {
+export function HeroSection({ articles, onSelectArticle }: HeroSectionProps) {
   return (
     <section className="mb-12 grid grid-cols-1 items-center gap-8 lg:mb-20 lg:grid-cols-[minmax(190px,0.8fr)_minmax(420px,1.7fr)_minmax(190px,0.8fr)] lg:gap-9">
       <div className="flex flex-col items-start text-left lg:items-end lg:text-right">
