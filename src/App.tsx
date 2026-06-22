@@ -3,7 +3,8 @@ import ArticlePage from './components/ArticlePage'
 import AdminLoginPage from './components/AdminLoginPage'
 import AuthPage, { type AuthMode } from './components/AuthPage'
 import MemberPage, { type MemberView } from './components/MemberPage'
-import HeroBook from './components/HeroBook'
+import NavBar from './components/NavBar'
+import HeroSection from './components/HeroSection'
 import type { MemberProfile } from './data/member'
 import {
   articles,
@@ -283,61 +284,15 @@ function App() {
 
   return (
     <div className="page">
-      <header className="header">
-        <a href="/" className="logo">
-          hh.
-        </a>
-        {currentMember ? (
-          <div className="member-nav">
-            <button type="button" className="member-nav__bell" aria-label="Notifications">♧</button>
-            <button type="button" className="member-nav__profile" onClick={() => openMemberView('profile')}>
-              <img src={currentMember.avatar} alt="" />
-              <span>{currentMember.name}</span>
-              <span aria-hidden="true">⌄</span>
-            </button>
-          </div>
-        ) : (
-          <div className="header__actions">
-            <button type="button" className="btn btn--outline" onClick={() => openAuth('login')}>
-              Log in
-            </button>
-            <button type="button" className="btn btn--solid" onClick={() => openAuth('signup')}>
-              Sign up
-            </button>
-          </div>
-        )}
-      </header>
+      <NavBar
+        member={currentMember}
+        onLogin={() => openAuth('login')}
+        onSignUp={() => openAuth('signup')}
+        onProfile={() => openMemberView('profile')}
+      />
 
       <main>
-        <section className="hero">
-          <div className="hero__text">
-            <h1 className="hero__title">
-              Stay
-              <br />
-              Informed,
-              <br />
-              Stay Inspired
-            </h1>
-            <p className="hero__subtitle">
-              Discover a World of Knowledge at Your Fingertips. Your Daily Dose
-              of Inspiration and Information.
-            </p>
-          </div>
-
-          <HeroBook articles={articles} onSelectArticle={openArticle} />
-
-          <div className="hero__author">
-            <span className="hero__author-label">-About this archive</span>
-            <h2 className="hero__author-name">Thinkers &amp; Writers</h2>
-            <p className="hero__author-bio">
-              พื้นที่รวบรวมเรื่องราวของนักคิดและนักเขียนที่เราชื่นชอบ
-              ผ่านบทความ ประวัติ แนวคิด และผลงานที่น่าสนใจ
-            </p>
-            <p className="hero__author-bio">
-              เปิดหนังสือเล่มกลางเพื่อไล่ดูภาพ และเลือกหน้าที่ต้องการเพื่ออ่านบทความฉบับเต็ม
-            </p>
-          </div>
-        </section>
+        <HeroSection articles={articles} onSelectArticle={openArticle} />
 
         <section className="articles-section">
           <h2 className="articles-section__title">Latest articles</h2>
