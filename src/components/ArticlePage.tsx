@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
+import { Bell } from 'lucide-react'
 import type { Article } from '../data/articles'
 import type { MemberProfile } from '../data/member'
 import type { AuthMode } from './AuthPage'
+import { ProfileMenu } from './ProfileMenu'
 
 interface ArticlePageProps {
   article: Article
@@ -9,6 +11,8 @@ interface ArticlePageProps {
   onBack: () => void
   onAuthNavigate: (mode: AuthMode) => void
   onMemberProfile: () => void
+  onMemberResetPassword: () => void
+  onLogout: () => void
 }
 
 function SmileIcon() {
@@ -60,7 +64,15 @@ function TwitterIcon() {
   )
 }
 
-export default function ArticlePage({ article, member, onBack, onAuthNavigate, onMemberProfile }: ArticlePageProps) {
+export default function ArticlePage({
+  article,
+  member,
+  onBack,
+  onAuthNavigate,
+  onMemberProfile,
+  onMemberResetPassword,
+  onLogout,
+}: ArticlePageProps) {
   const [likes, setLikes] = useState(article.likes)
   const [liked, setLiked] = useState(false)
   const [commentText, setCommentText] = useState('')
@@ -126,12 +138,16 @@ export default function ArticlePage({ article, member, onBack, onAuthNavigate, o
           </button>
           {member ? (
             <div className="member-nav">
-              <button type="button" className="member-nav__bell" aria-label="Notifications">♧</button>
-              <button type="button" className="member-nav__profile" onClick={onMemberProfile}>
-                <img src={member.avatar} alt="" />
-                <span>{member.name}</span>
-                <span aria-hidden="true">⌄</span>
+              <button type="button" className="member-nav__bell" aria-label="Notifications">
+                <Bell size={20} strokeWidth={1.7} aria-hidden="true" />
               </button>
+              <ProfileMenu
+                member={member}
+                buttonClassName="member-nav__profile"
+                onProfile={onMemberProfile}
+                onResetPassword={onMemberResetPassword}
+                onLogout={onLogout}
+              />
             </div>
           ) : (
             <div className="header__actions">

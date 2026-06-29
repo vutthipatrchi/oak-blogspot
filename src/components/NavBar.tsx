@@ -1,14 +1,17 @@
 import type { MemberProfile } from '../data/member'
-import { Bell, ChevronDown } from 'lucide-react'
+import { Bell } from 'lucide-react'
+import { ProfileMenu } from './ProfileMenu'
 
 interface NavBarProps {
   member: MemberProfile | null
   onLogin: () => void
   onSignUp: () => void
   onProfile: () => void
+  onResetPassword: () => void
+  onLogout: () => void
 }
 
-export function NavBar({ member, onLogin, onSignUp, onProfile }: NavBarProps) {
+export function NavBar({ member, onLogin, onSignUp, onProfile, onResetPassword, onLogout }: NavBarProps) {
   return (
     <header className="flex items-center justify-between py-6 pb-8 md:pb-12">
       <a href="/" className="text-2xl font-semibold tracking-tight no-underline">
@@ -24,11 +27,16 @@ export function NavBar({ member, onLogin, onSignUp, onProfile }: NavBarProps) {
           >
             <Bell className="size-5" strokeWidth={1.7} aria-hidden="true" />
           </button>
-          <button type="button" className="flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 font-medium text-stone-700" onClick={onProfile}>
-            <img src={member.avatar} alt="" className="size-10 rounded-full object-cover sm:size-12" />
-            <span className="hidden sm:inline">{member.name}</span>
-            <ChevronDown className="size-4" aria-hidden="true" />
-          </button>
+          <ProfileMenu
+            member={member}
+            buttonClassName="flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 font-medium text-stone-700"
+            avatarClassName="size-10 rounded-full object-cover sm:size-12"
+            nameClassName="hidden sm:inline"
+            chevronClassName="size-4"
+            onProfile={onProfile}
+            onResetPassword={onResetPassword}
+            onLogout={onLogout}
+          />
         </div>
       ) : (
         <div className="flex gap-2 sm:gap-3">

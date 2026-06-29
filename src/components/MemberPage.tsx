@@ -1,5 +1,7 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { Bell, RotateCcw, User } from 'lucide-react'
 import type { MemberProfile } from '../data/member'
+import { ProfileMenu } from './ProfileMenu'
 
 export type MemberView = 'profile' | 'reset-password'
 
@@ -9,17 +11,18 @@ interface MemberPageProps {
   onBack: () => void
   onNavigate: (view: MemberView) => void
   onSave: (member: MemberProfile) => void
+  onLogout: () => void
 }
 
 function ProfileIcon() {
-  return <span className="member-menu__icon" aria-hidden="true">♙</span>
+  return <User className="member-menu__icon" size={20} strokeWidth={1.6} aria-hidden="true" />
 }
 
 function PasswordIcon() {
-  return <span className="member-menu__icon" aria-hidden="true">↶</span>
+  return <RotateCcw className="member-menu__icon" size={20} strokeWidth={1.6} aria-hidden="true" />
 }
 
-export default function MemberPage({ member, view, onBack, onNavigate, onSave }: MemberPageProps) {
+export default function MemberPage({ member, view, onBack, onNavigate, onSave, onLogout }: MemberPageProps) {
   const [draft, setDraft] = useState(member)
   const [message, setMessage] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -63,12 +66,16 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave }:
       <header className="member-navbar">
         <button type="button" className="logo member-navbar__logo" onClick={onBack}>hh.</button>
         <div className="member-navbar__account">
-          <button type="button" className="member-navbar__bell" aria-label="Notifications">♧</button>
-          <button type="button" className="member-navbar__user" onClick={() => onNavigate('profile')}>
-            <img src={member.avatar} alt="" />
-            <span>{member.name}</span>
-            <span aria-hidden="true">⌄</span>
+          <button type="button" className="member-navbar__bell" aria-label="Notifications">
+            <Bell size={20} strokeWidth={1.7} aria-hidden="true" />
           </button>
+          <ProfileMenu
+            member={member}
+            buttonClassName="member-navbar__user"
+            onProfile={() => onNavigate('profile')}
+            onResetPassword={() => onNavigate('reset-password')}
+            onLogout={onLogout}
+          />
         </div>
       </header>
 

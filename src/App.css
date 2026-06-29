@@ -80,6 +80,60 @@
   object-fit: cover;
 }
 
+.profile-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.profile-menu__panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 100;
+  width: 250px;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  padding: 8px 0;
+  border: 1px solid #dedbd5;
+  border-radius: 14px;
+  background: #fff;
+  color: #43403b;
+  box-shadow: 0 18px 42px rgba(38, 35, 30, 0.18);
+}
+
+.profile-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 0;
+  background: transparent;
+  color: #43403b;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.profile-menu__item:hover,
+.profile-menu__item:focus-visible {
+  background: #f4f3f1;
+  outline: none;
+}
+
+.profile-menu__item svg {
+  flex: 0 0 auto;
+  color: #75716b;
+}
+
+.profile-menu__item--danger {
+  margin-top: 6px;
+  border-top: 1px solid #dedbd5;
+}
+
 .btn {
   padding: 12px 24px;
   border-radius: 999px;

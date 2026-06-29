@@ -116,6 +116,17 @@ function App() {
     window.scrollTo(0, 0)
   }, [saveMember])
 
+  const logoutMember = useCallback(() => {
+    setCurrentMember(null)
+    window.localStorage.removeItem('hh.member')
+    setMemberView(null)
+    setAuthMode(null)
+    setSelectedArticleId(null)
+    setShowAdminLogin(false)
+    window.history.pushState({}, '', window.location.pathname)
+    window.scrollTo(0, 0)
+  }, [])
+
   const closeAdminLogin = useCallback(() => {
     setShowAdminLogin(false)
     window.history.pushState({}, '', window.location.pathname)
@@ -146,6 +157,7 @@ function App() {
         onBack={closeMemberView}
         onNavigate={openMemberView}
         onSave={saveMember}
+        onLogout={logoutMember}
       />
     )
   }
@@ -174,6 +186,8 @@ function App() {
         onBack={closeArticle}
         onAuthNavigate={openAuth}
         onMemberProfile={() => openMemberView('profile')}
+        onMemberResetPassword={() => openMemberView('reset-password')}
+        onLogout={logoutMember}
       />
     )
   }
@@ -185,6 +199,8 @@ function App() {
         onLogin={() => openAuth('login')}
         onSignUp={() => openAuth('signup')}
         onProfile={() => openMemberView('profile')}
+        onResetPassword={() => openMemberView('reset-password')}
+        onLogout={logoutMember}
       />
 
       <main>
