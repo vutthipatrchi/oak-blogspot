@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { ChevronDown, LogOut, RotateCcw, User } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { MemberProfile } from '../data/member'
 
 interface ProfileMenuProps {
@@ -24,6 +25,7 @@ export function ProfileMenu({
   onLogout,
 }: ProfileMenuProps) {
   const [open, setOpen] = useState(false)
+  const { t } = useTranslation()
   const menuId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -75,7 +77,7 @@ export function ProfileMenu({
         <div className="profile-menu__panel" id={menuId} role="menu">
           <button type="button" className="profile-menu__item" role="menuitem" onClick={() => runAction(onProfile)}>
             <User size={20} strokeWidth={1.6} aria-hidden="true" />
-            <span>Profile</span>
+            <span>{t('common.profile')}</span>
           </button>
           <button
             type="button"
@@ -84,7 +86,7 @@ export function ProfileMenu({
             onClick={() => runAction(onResetPassword)}
           >
             <RotateCcw size={20} strokeWidth={1.6} aria-hidden="true" />
-            <span>Reset password</span>
+            <span>{t('common.resetPassword')}</span>
           </button>
           <button
             type="button"
@@ -93,7 +95,7 @@ export function ProfileMenu({
             onClick={() => runAction(onLogout)}
           >
             <LogOut size={20} strokeWidth={1.6} aria-hidden="true" />
-            <span>Log out</span>
+            <span>{t('common.logout')}</span>
           </button>
         </div>
       )}

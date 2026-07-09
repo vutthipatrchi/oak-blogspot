@@ -1,14 +1,17 @@
 import { Briefcase, Code, Globe } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface FooterProps {
   onAdminLogin: () => void
 }
 
 export function Footer({ onAdminLogin }: FooterProps) {
+  const { t } = useTranslation()
+
   return (
     <footer className="footer">
       <div className="footer__left">
-        <span className="footer__label">Get in touch</span>
+        <span className="footer__label">{t('footer.getInTouch')}</span>
         <div className="footer__social">
           <a href="#" aria-label="LinkedIn" className="social-link">
             <Briefcase aria-hidden="true" />
@@ -26,7 +29,7 @@ export function Footer({ onAdminLogin }: FooterProps) {
         className="footer__home footer__home--btn"
         onClick={onAdminLogin}
       >
-        Admin panel
+        {t('footer.adminPanel')}
       </button>
     </footer>
   )

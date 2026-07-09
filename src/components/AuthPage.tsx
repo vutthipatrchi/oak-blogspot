@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { defaultMember, type MemberProfile } from '../data/member'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 export type AuthMode = 'signup' | 'login'
 
@@ -12,6 +14,7 @@ interface AuthPageProps {
 
 export default function AuthPage({ mode, onBack, onModeChange, onAuthenticated }: AuthPageProps) {
   const isSignUp = mode === 'signup'
+  const { t } = useTranslation()
   const [emailError, setEmailError] = useState('')
   const [registrationSuccess, setRegistrationSuccess] = useState(false)
   const [registeredMember, setRegisteredMember] = useState<MemberProfile | null>(null)
@@ -29,7 +32,7 @@ export default function AuthPage({ mode, onBack, onModeChange, onAuthenticated }
     const email = String(formData.get('email') ?? '').trim().toLowerCase()
 
     if (email === 'moodeng.cute@gmail.com') {
-      setEmailError('Email is already taken, Please try another email.')
+      setEmailError(t('auth.emailTaken'))
       const emailInput = event.currentTarget.elements.namedItem('email')
       if (emailInput instanceof HTMLInputElement) emailInput.focus()
       return
@@ -53,19 +56,20 @@ export default function AuthPage({ mode, onBack, onModeChange, onAuthenticated }
             hh.
           </button>
           <div className="header__actions">
+            <LanguageSwitcher />
             <button
               type="button"
               className={`btn ${isSignUp ? 'btn--outline' : 'btn--solid'}`}
               onClick={() => onModeChange('login')}
             >
-              Log in
+              {t('common.login')}
             </button>
             <button
               type="button"
               className={`btn ${isSignUp ? 'btn--solid' : 'btn--outline'}`}
               onClick={() => onModeChange('signup')}
             >
-              Sign up
+              {t('common.signup')}
             </button>
           </div>
         </div>
@@ -79,38 +83,38 @@ export default function AuthPage({ mode, onBack, onModeChange, onAuthenticated }
                 <path d="m7 12.5 3.25 3.25L17.5 8.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <h1 className="auth-success__title">Registration success</h1>
+            <h1 className="auth-success__title">{t('auth.registrationSuccess')}</h1>
             <button
               type="button"
               className="auth-form__submit auth-success__continue"
               onClick={() => registeredMember && onAuthenticated(registeredMember)}
             >
-              Continue
+              {t('auth.continue')}
             </button>
           </section>
         ) : (
         <section className={`auth-card${isSignUp ? '' : ' auth-card--login'}`}>
-          <h1 className="auth-card__title">{isSignUp ? 'Sign up' : 'Log in'}</h1>
+          <h1 className="auth-card__title">{isSignUp ? t('common.signup') : t('common.login')}</h1>
 
           <form className="auth-form" onSubmit={handleSubmit}>
             {isSignUp && (
               <>
                 <label className="auth-field">
-                  <span>Name</span>
+                  <span>{t('auth.name')}</span>
                   <input
                     type="text"
                     name="name"
-                    placeholder="Full name"
+                    placeholder={t('auth.fullName')}
                     autoComplete="name"
                     required
                   />
                 </label>
                 <label className="auth-field">
-                  <span>Username</span>
+                  <span>{t('auth.username')}</span>
                   <input
                     type="text"
                     name="username"
-                    placeholder="Username"
+                    placeholder={t('auth.username')}
                     autoComplete="username"
                     required
                   />
@@ -119,11 +123,11 @@ export default function AuthPage({ mode, onBack, onModeChange, onAuthenticated }
             )}
 
             <label className={`auth-field${emailError ? ' auth-field--error' : ''}`}>
-              <span>{isSignUp ? 'Email' : 'Email or username'}</span>
+              <span>{isSignUp ? t('auth.email') : t('auth.emailOrUsername')}</span>
               <input
                 type={isSignUp ? 'email' : 'text'}
                 name={isSignUp ? 'email' : 'identifier'}
-                placeholder={isSignUp ? 'Email' : 'Email or username'}
+                placeholder={isSignUp ? t('auth.email') : t('auth.emailOrUsername')}
                 autoComplete={isSignUp ? 'email' : 'username'}
                 aria-invalid={emailError ? 'true' : undefined}
                 aria-describedby={emailError ? 'signup-email-error' : undefined}
@@ -138,29 +142,29 @@ export default function AuthPage({ mode, onBack, onModeChange, onAuthenticated }
             </label>
 
             <label className="auth-field">
-              <span>Password</span>
+              <span>{t('auth.password')}</span>
               <input
                 type="password"
                 name="password"
-                placeholder="Password"
+                placeholder={t('auth.password')}
                 autoComplete={isSignUp ? 'new-password' : 'current-password'}
                 required
               />
             </label>
 
             <button type="submit" className="auth-form__submit">
-              {isSignUp ? 'Sign up' : 'Log in'}
+              {isSignUp ? t('common.signup') : t('common.login')}
             </button>
           </form>
 
           <p className="auth-card__switch">
-            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+            {isSignUp ? t('auth.alreadyHaveAccount') : t('auth.dontHaveAccount')}{' '}
             <button
               type="button"
               className="auth-card__switch-btn"
               onClick={() => onModeChange(isSignUp ? 'login' : 'signup')}
             >
-              {isSignUp ? 'Log in' : 'Sign up'}
+              {isSignUp ? t('common.login') : t('common.signup')}
             </button>
           </p>
         </section>

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -26,6 +27,8 @@ function ArticleCard({
   article: Article
   onSelect: (id: number) => void
 }) {
+  const { t } = useTranslation()
+
   return (
     <article
       className="article-card"
@@ -41,7 +44,7 @@ function ArticleCard({
     >
       <img src={article.image} alt="" className="article-card__image" loading="lazy" />
       <div className="article-card__tags">
-        <span className="article-card__tag">{article.category}</span>
+        <span className="article-card__tag">{t(`articles.categories.${article.category}`)}</span>
         {article.tags.slice(0, 2).map((tag) => (
           <span key={tag} className="article-card__topic">{tag}</span>
         ))}
@@ -58,6 +61,7 @@ function ArticleCard({
 }
 
 export default function ArticleSection({ articles, onSelectArticle }: ArticleSectionProps) {
+  const { t } = useTranslation()
   const [activeCategory, setActiveCategory] = useState<Category>('Highlight')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
@@ -73,6 +77,7 @@ export default function ArticleSection({ articles, onSelectArticle }: ArticleSec
         article.title,
         article.excerpt,
         article.category,
+        t(`articles.categories.${article.category}`),
         ...article.tags,
         article.author,
         ...article.sections.flatMap((section) => [
@@ -84,13 +89,13 @@ export default function ArticleSection({ articles, onSelectArticle }: ArticleSec
 
       return matchesCategory && (query === '' || searchableText.includes(query))
     })
-  }, [activeCategory, articles, searchQuery])
+  }, [activeCategory, articles, searchQuery, t])
 
   const searchSuggestions = searchQuery.trim() ? filteredArticles.slice(0, 3) : []
 
   return (
     <section className="articles-section" id="articles">
-      <h2 className="articles-section__title">Latest articles</h2>
+      <h2 className="articles-section__title">{t('articles.latest')}</h2>
 
       <div className="articles-toolbar">
         <div className="articles-toolbar__filters hidden md:flex">
@@ -101,7 +106,7 @@ export default function ArticleSection({ articles, onSelectArticle }: ArticleSec
               className={`filter-btn${activeCategory === category ? ' filter-btn--active' : ''}`}
               onClick={() => setActiveCategory(category)}
             >
-              {category}
+              {t(`articles.categories.${category}`)}
             </button>
           ))}
         </div>
@@ -111,12 +116,12 @@ export default function ArticleSection({ articles, onSelectArticle }: ArticleSec
             value={activeCategory}
             onValueChange={(value) => value && setActiveCategory(value as Category)}
           >
-            <SelectTrigger className="h-12 w-full rounded-xl bg-white px-4" aria-label="Article category">
+            <SelectTrigger className="h-12 w-full rounded-xl bg-white px-4" aria-label={t('articles.categoryLabel')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {categories.map((category) => (
-                <SelectItem key={category} value={category}>{category}</SelectItem>
+                <SelectItem key={category} value={category}>{t(`articles.categories.${category}`)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -131,11 +136,11 @@ export default function ArticleSection({ articles, onSelectArticle }: ArticleSec
             }
           }}
         >
-          <label htmlFor="article-search" className="visually-hidden">Search articles</label>
+          <label htmlFor="article-search" className="visually-hidden">{t('articles.searchLabel')}</label>
           <Input
             id="article-search"
             type="search"
-            placeholder="Search"
+            placeholder={t('articles.searchPlaceholder')}
             value={searchQuery}
             onChange={(event) => {
               setSearchQuery(event.target.value)
@@ -197,7 +202,7 @@ export default function ArticleSection({ articles, onSelectArticle }: ArticleSec
                   </button>
                 ))
               ) : (
-                <p className="search-results__empty">No matching articles</p>
+                <p className="search-results__empty">{t('articles.noMatching')}</p>
               )}
             </div>
           )}
@@ -205,7 +210,7 @@ export default function ArticleSection({ articles, onSelectArticle }: ArticleSec
       </div>
 
       <p className="visually-hidden" role="status" aria-live="polite">
-        {filteredArticles.length} article{filteredArticles.length === 1 ? '' : 's'} found
+        {t('articles.resultsStatus', { count: filteredArticles.length })}
       </p>
 
       <div className="articles-grid" id="articles-grid">
@@ -216,12 +221,14 @@ export default function ArticleSection({ articles, onSelectArticle }: ArticleSec
 
       {filteredArticles.length === 0 && (
         <p className="articles-empty">
-          No articles found{searchQuery.trim() ? ` for “${searchQuery.trim()}”` : ''}.
+          {searchQuery.trim()
+            ? t('articles.emptyWithQuery', { query: searchQuery.trim() })
+            : t('articles.empty')}
         </p>
       )}
 
       <div className="view-more">
-        <a href="#articles" className="view-more__link">View more</a>
+        <a href="#articles" className="view-more__link">{t('articles.viewMore')}</a>
       </div>
     </section>
   )

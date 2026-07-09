@@ -1,5 +1,7 @@
 import type { MemberProfile } from '../data/member'
 import { Bell } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { LanguageSwitcher } from './LanguageSwitcher'
 import { ProfileMenu } from './ProfileMenu'
 
 interface NavBarProps {
@@ -12,6 +14,8 @@ interface NavBarProps {
 }
 
 export function NavBar({ member, onLogin, onSignUp, onProfile, onResetPassword, onLogout }: NavBarProps) {
+  const { t } = useTranslation()
+
   return (
     <header className="flex items-center justify-between py-6 pb-8 md:pb-12">
       <a href="/" className="text-2xl font-semibold tracking-tight no-underline">
@@ -20,10 +24,11 @@ export function NavBar({ member, onLogin, onSignUp, onProfile, onResetPassword, 
 
       {member ? (
         <div className="flex items-center gap-2 sm:gap-4">
+          <LanguageSwitcher />
           <button
             type="button"
             className="grid size-10 cursor-pointer place-items-center rounded-full border border-stone-200 bg-white text-stone-500 sm:size-12"
-            aria-label="Notifications"
+            aria-label={t('common.notifications')}
           >
             <Bell className="size-5" strokeWidth={1.7} aria-hidden="true" />
           </button>
@@ -39,12 +44,13 @@ export function NavBar({ member, onLogin, onSignUp, onProfile, onResetPassword, 
           />
         </div>
       ) : (
-        <div className="flex gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <LanguageSwitcher />
           <button type="button" className="cursor-pointer rounded-full border border-stone-800 bg-transparent px-4 py-2 text-sm font-medium text-stone-800 transition-opacity hover:opacity-75 sm:px-6 sm:py-3 sm:text-base" onClick={onLogin}>
-            Log in
+            {t('common.login')}
           </button>
           <button type="button" className="cursor-pointer rounded-full border border-stone-800 bg-stone-800 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-80 sm:px-6 sm:py-3 sm:text-base" onClick={onSignUp}>
-            Sign up
+            {t('common.signup')}
           </button>
         </div>
       )}

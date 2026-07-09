@@ -1,6 +1,8 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Bell, RotateCcw, User } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { MemberProfile } from '../data/member'
+import { LanguageSwitcher } from './LanguageSwitcher'
 import { ProfileMenu } from './ProfileMenu'
 
 export type MemberView = 'profile' | 'reset-password'
@@ -23,6 +25,7 @@ function PasswordIcon() {
 }
 
 export default function MemberPage({ member, view, onBack, onNavigate, onSave, onLogout }: MemberPageProps) {
+  const { t } = useTranslation()
   const [draft, setDraft] = useState(member)
   const [message, setMessage] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -43,7 +46,7 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
   const handleProfileSave = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     onSave(draft)
-    setMessage('Profile saved')
+    setMessage(t('member.profileSaved'))
   }
 
   const handlePasswordSave = (event: FormEvent<HTMLFormElement>) => {
@@ -53,12 +56,12 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
     const confirmation = String(formData.get('confirmPassword') ?? '')
 
     if (password !== confirmation) {
-      setMessage('Passwords do not match')
+      setMessage(t('member.passwordsDoNotMatch'))
       return
     }
 
     event.currentTarget.reset()
-    setMessage('Password updated')
+    setMessage(t('member.passwordUpdated'))
   }
 
   return (
@@ -66,7 +69,8 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
       <header className="member-navbar">
         <button type="button" className="logo member-navbar__logo" onClick={onBack}>hh.</button>
         <div className="member-navbar__account">
-          <button type="button" className="member-navbar__bell" aria-label="Notifications">
+          <LanguageSwitcher />
+          <button type="button" className="member-navbar__bell" aria-label={t('common.notifications')}>
             <Bell size={20} strokeWidth={1.7} aria-hidden="true" />
           </button>
           <ProfileMenu
@@ -80,20 +84,20 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
       </header>
 
       <div className="member-layout">
-        <aside className="member-sidebar" aria-label="Member settings">
+        <aside className="member-sidebar" aria-label={t('member.settings')}>
           <button
             type="button"
             className={view === 'profile' ? 'member-menu member-menu--active' : 'member-menu'}
             onClick={() => { setMessage(''); onNavigate('profile') }}
           >
-            <ProfileIcon /> Profile
+            <ProfileIcon /> {t('common.profile')}
           </button>
           <button
             type="button"
             className={view === 'reset-password' ? 'member-menu member-menu--active' : 'member-menu'}
             onClick={() => { setMessage(''); onNavigate('reset-password') }}
           >
-            <PasswordIcon /> Reset password
+            <PasswordIcon /> {t('common.resetPassword')}
           </button>
         </aside>
 
@@ -101,7 +105,7 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
           {view === 'profile' ? (
             <form className="member-card" onSubmit={handleProfileSave}>
               <div className="member-card__photo">
-                <img src={draft.avatar} alt="Profile preview" />
+                <img src={draft.avatar} alt={t('member.profilePreview')} />
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -110,14 +114,14 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
                   className="visually-hidden"
                 />
                 <button type="button" onClick={() => fileInputRef.current?.click()}>
-                  Upload profile picture
+                  {t('member.uploadProfilePicture')}
                 </button>
               </div>
 
               <div className="member-card__divider" />
 
               <label className="member-field">
-                <span>Name</span>
+                <span>{t('member.name')}</span>
                 <input
                   value={draft.name}
                   onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
@@ -125,7 +129,7 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
                 />
               </label>
               <label className="member-field">
-                <span>Username</span>
+                <span>{t('member.username')}</span>
                 <input
                   value={draft.username}
                   onChange={(event) => setDraft((current) => ({ ...current, username: event.target.value }))}
@@ -133,33 +137,33 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
                 />
               </label>
               <label className="member-field member-field--disabled">
-                <span>Email</span>
+                <span>{t('member.email')}</span>
                 <input value={draft.email} disabled />
               </label>
 
-              <button type="submit" className="member-card__save">Save</button>
+              <button type="submit" className="member-card__save">{t('member.save')}</button>
             </form>
           ) : (
             <form className="member-card member-card--password" onSubmit={handlePasswordSave}>
-              <h1>Reset password</h1>
+              <h1>{t('common.resetPassword')}</h1>
               <label className="member-field">
-                <span>Current password</span>
+                <span>{t('member.currentPassword')}</span>
                 <input type="password" name="currentPassword" autoComplete="current-password" required />
               </label>
               <label className="member-field">
-                <span>New password</span>
+                <span>{t('member.newPassword')}</span>
                 <input type="password" name="newPassword" autoComplete="new-password" minLength={8} required />
               </label>
               <label className="member-field">
-                <span>Confirm new password</span>
+                <span>{t('member.confirmNewPassword')}</span>
                 <input type="password" name="confirmPassword" autoComplete="new-password" minLength={8} required />
               </label>
-              <button type="submit" className="member-card__save">Save</button>
+              <button type="submit" className="member-card__save">{t('member.save')}</button>
             </form>
           )}
 
           {message && (
-            <p className={`member-message${message.includes('match') ? ' member-message--error' : ''}`} role="status">
+            <p className={`member-message${message === t('member.passwordsDoNotMatch') ? ' member-message--error' : ''}`} role="status">
               {message}
             </p>
           )}

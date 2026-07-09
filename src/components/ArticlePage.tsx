@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { Bell } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { Article } from '../data/articles'
 import type { MemberProfile } from '../data/member'
 import type { AuthMode } from './AuthPage'
+import { LanguageSwitcher } from './LanguageSwitcher'
 import { ProfileMenu } from './ProfileMenu'
 
 interface ArticlePageProps {
@@ -73,10 +75,11 @@ export default function ArticlePage({
   onMemberResetPassword,
   onLogout,
 }: ArticlePageProps) {
+  const { t } = useTranslation()
   const [likes, setLikes] = useState(article.likes)
   const [liked, setLiked] = useState(false)
   const [commentText, setCommentText] = useState('')
-  const [copyLabel, setCopyLabel] = useState('Copy link')
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [showCommentAuth, setShowCommentAuth] = useState(false)
   const closeModalRef = useRef<HTMLButtonElement>(null)
 
@@ -112,11 +115,11 @@ export default function ArticlePage({
     const url = `${window.location.origin}${window.location.pathname}?article=${article.id}`
     try {
       await navigator.clipboard.writeText(url)
-      setCopyLabel('Copied!')
-      setTimeout(() => setCopyLabel('Copy link'), 2000)
+      setCopyStatus('copied')
+      setTimeout(() => setCopyStatus('idle'), 2000)
     } catch {
-      setCopyLabel('Failed')
-      setTimeout(() => setCopyLabel('Copy link'), 2000)
+      setCopyStatus('failed')
+      setTimeout(() => setCopyStatus('idle'), 2000)
     }
   }
 
@@ -138,7 +141,8 @@ export default function ArticlePage({
           </button>
           {member ? (
             <div className="member-nav">
-              <button type="button" className="member-nav__bell" aria-label="Notifications">
+              <LanguageSwitcher variant="dark" />
+              <button type="button" className="member-nav__bell" aria-label={t('common.notifications')}>
                 <Bell size={20} strokeWidth={1.7} aria-hidden="true" />
               </button>
               <ProfileMenu
@@ -151,11 +155,12 @@ export default function ArticlePage({
             </div>
           ) : (
             <div className="header__actions">
+              <LanguageSwitcher variant="dark" />
               <button type="button" className="btn btn--outline btn--dark" onClick={() => onAuthNavigate('login')}>
-                Log in
+                {t('common.login')}
               </button>
               <button type="button" className="btn btn--solid btn--dark-solid" onClick={() => onAuthNavigate('signup')}>
-                Sign up
+                {t('common.signup')}
               </button>
             </div>
           )}
@@ -171,7 +176,7 @@ export default function ArticlePage({
           <div className="article-detail__layout">
             <div className="article-detail__main">
               <div className="article-detail__meta">
-                <span className="article-detail__tag">{article.category}</span>
+                <span className="article-detail__tag">{t(`articles.categories.${article.category}`)}</span>
                 {article.tags.map((tag) => (
                   <span key={tag} className="article-detail__topic">{tag}</span>
                 ))}
@@ -206,7 +211,7 @@ export default function ArticlePage({
 
               {article.source && (
                 <p className="article-detail__source">
-                  แหล่งข้อมูล:{' '}
+                  {t('article.sourceLabel')}:{' '}
                   <a href={article.source.url} target="_blank" rel="noreferrer">
                     {article.source.label}
                   </a>
@@ -228,27 +233,27 @@ export default function ArticlePage({
                   onClick={handleCopyLink}
                 >
                   <LinkIcon />
-                  <span>{copyLabel}</span>
+                  <span>{t(`article.${copyStatus === 'idle' ? 'copyLink' : copyStatus}`)}</span>
                 </button>
                 <div className="article-detail__social">
-                  <a href="#" aria-label="Share on Facebook" className="social-share social-share--facebook">
+                  <a href="#" aria-label={t('article.shareFacebook')} className="social-share social-share--facebook">
                     <FacebookIcon />
                   </a>
-                  <a href="#" aria-label="Share on LinkedIn" className="social-share social-share--linkedin">
+                  <a href="#" aria-label={t('article.shareLinkedIn')} className="social-share social-share--linkedin">
                     <LinkedInIcon />
                   </a>
-                  <a href="#" aria-label="Share on X" className="social-share social-share--twitter">
+                  <a href="#" aria-label={t('article.shareX')} className="social-share social-share--twitter">
                     <TwitterIcon />
                   </a>
                 </div>
               </div>
 
               <section className="comments">
-                <h2 className="comments__title">Comment</h2>
+                <h2 className="comments__title">{t('article.commentTitle')}</h2>
                 <form className="comment-form" onSubmit={handleSendComment}>
                   <textarea
                     className="comment-form__input"
-                    placeholder="What are your thoughts?"
+                    placeholder={t('article.commentPlaceholder')}
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     onClick={() => setShowCommentAuth(true)}
@@ -257,7 +262,7 @@ export default function ArticlePage({
                   />
                   <div className="comment-form__footer">
                     <button type="submit" className="comment-form__send">
-                      Send
+                      {t('article.send')}
                     </button>
                   </div>
                 </form>
@@ -285,7 +290,7 @@ export default function ArticlePage({
 
             <aside className="article-detail__sidebar">
               <div className="author-card">
-                <span className="author-card__label">Author</span>
+                <span className="author-card__label">{t('article.author')}</span>
                 <div className="author-card__profile">
                   <img
                     src={article.authorAvatar}
@@ -306,7 +311,7 @@ export default function ArticlePage({
 
         <footer className="footer footer--dark">
           <div className="footer__left">
-            <span className="footer__label">Get in touch</span>
+            <span className="footer__label">{t('footer.getInTouch')}</span>
             <div className="footer__social">
               <a href="#" aria-label="LinkedIn" className="social-link social-link--dark">
                 <LinkedInIcon />
@@ -325,7 +330,7 @@ export default function ArticlePage({
             </div>
           </div>
           <button type="button" className="footer__home footer__home--btn" onClick={onBack}>
-            Home page
+            {t('footer.homePage')}
           </button>
         </footer>
       </div>
@@ -342,21 +347,21 @@ export default function ArticlePage({
               ref={closeModalRef}
               type="button"
               className="comment-auth-modal__close"
-              aria-label="Close"
+              aria-label={t('article.close')}
               onClick={() => setShowCommentAuth(false)}
             >
               <span aria-hidden="true">×</span>
             </button>
             <h2 id="comment-auth-title" className="comment-auth-modal__title">
-              Create an account to continue
+              {t('article.commentAuthTitle')}
             </h2>
             <button type="button" className="comment-auth-modal__primary" onClick={() => onAuthNavigate('signup')}>
-              Create account
+              {t('article.createAccount')}
             </button>
             <p className="comment-auth-modal__login">
-              Already have an account?{' '}
+              {t('article.alreadyHaveAccount')}{' '}
               <button type="button" className="comment-auth-modal__login-btn" onClick={() => onAuthNavigate('login')}>
-                Log in
+                {t('common.login')}
               </button>
             </p>
           </div>
