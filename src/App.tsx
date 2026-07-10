@@ -8,10 +8,13 @@ import { Footer } from './components/Footer'
 import { NavBar } from './components/NavBar'
 import { HeroSection } from './components/HeroSection'
 import type { MemberProfile } from './data/member'
-import { articles, getArticleById } from './data/articles'
+import { articles as staticArticles } from './data/articles'
+import { fetchArticles } from './lib/articles'
+import { isSupabaseConfigured } from './lib/supabase'
 import './App.css'
 
 function App() {
+  const [articleList, setArticleList] = useState(staticArticles)
   const [currentMember, setCurrentMember] = useState<MemberProfile | null>(() => {
     try {
       const savedMember = window.localStorage.getItem('hh.member')
@@ -40,8 +43,28 @@ function App() {
   )
 
   const selectedArticle = selectedArticleId
-    ? getArticleById(selectedArticleId)
+    ? articleList.find((article) => article.id === selectedArticleId)
     : undefined
+
+  useEffect(() => {
+    if (!isSupabaseConfigured && !import.meta.env.VITE_API_BASE_URL) return
+
+    let ignore = false
+
+    fetchArticles()
+      .then((loadedArticles) => {
+        if (!ignore && loadedArticles.length > 0) {
+          setArticleList(loadedArticles)
+        }
+      })
+      .catch((error: unknown) => {
+        console.warn('Unable to load articles. Falling back to static articles.', error)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   const openArticle = useCallback((id: number) => {
     setMemberView(null)
@@ -204,9 +227,9 @@ function App() {
       />
 
       <main>
-        <HeroSection articles={articles} onSelectArticle={openArticle} />
+        <HeroSection articles={articleList} onSelectArticle={openArticle} />
 
-        <ArticleSection articles={articles} onSelectArticle={openArticle} />
+        <ArticleSection articles={articleList} onSelectArticle={openArticle} />
       </main>
 
       <Footer onAdminLogin={openAdminLogin} />
