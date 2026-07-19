@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import ArticlePage from './components/ArticlePage'
 import ArticleSection from './components/ArticleSection'
-import AdminLoginPage from './components/AdminLoginPage'
 import ArticleManagementPage from './components/ArticleManagementPage'
 import AuthPage, { type AuthMode } from './components/AuthPage'
 import MemberPage, { type MemberView } from './components/MemberPage'
@@ -28,9 +27,10 @@ function App() {
     const view = new URLSearchParams(window.location.search).get('member')
     return view === 'profile' || view === 'reset-password' ? view : null
   })
-  const [showAdminLogin, setShowAdminLogin] = useState(
-    () => new URLSearchParams(window.location.search).get('admin') === 'login',
-  )
+  const [adminAuthMode, setAdminAuthMode] = useState<AuthMode | null>(() => {
+    const mode = new URLSearchParams(window.location.search).get('admin')
+    return mode === 'login' || mode === 'signup' ? mode : null
+  })
   const [showArticleManagement, setShowArticleManagement] = useState(
     () => new URLSearchParams(window.location.search).get('admin') === 'articles',
   )
@@ -72,7 +72,7 @@ function App() {
 
   const openArticle = useCallback((id: number) => {
     setMemberView(null)
-    setShowAdminLogin(false)
+    setAdminAuthMode(null)
     setShowArticleManagement(false)
     setAuthMode(null)
     setSelectedArticleId(id)
@@ -89,7 +89,7 @@ function App() {
 
   const openAuth = useCallback((mode: AuthMode) => {
     setMemberView(null)
-    setShowAdminLogin(false)
+    setAdminAuthMode(null)
     setShowArticleManagement(false)
     setSelectedArticleId(null)
     setAuthMode(mode)
@@ -104,13 +104,13 @@ function App() {
     window.scrollTo(0, 0)
   }, [])
 
-  const openAdminLogin = useCallback(() => {
+  const openAdminAuth = useCallback((mode: AuthMode) => {
     setMemberView(null)
     setAuthMode(null)
     setSelectedArticleId(null)
     setShowArticleManagement(false)
-    setShowAdminLogin(true)
-    window.history.pushState({}, '', '?admin=login')
+    setAdminAuthMode(mode)
+    window.history.pushState({}, '', `?admin=${mode}`)
     window.scrollTo(0, 0)
   }, [])
 
@@ -120,7 +120,7 @@ function App() {
       return
     }
     setAuthMode(null)
-    setShowAdminLogin(false)
+    setAdminAuthMode(null)
     setShowArticleManagement(false)
     setSelectedArticleId(null)
     setMemberView(view)
@@ -142,8 +142,8 @@ function App() {
   const authenticateMember = useCallback((member: MemberProfile) => {
     saveMember(member)
     setAuthMode(null)
-    setMemberView(null)
-    window.history.pushState({}, '', window.location.pathname)
+    setMemberView('profile')
+    window.history.pushState({}, '', '?member=profile')
     window.scrollTo(0, 0)
   }, [saveMember])
 
@@ -153,7 +153,7 @@ function App() {
     setMemberView(null)
     setAuthMode(null)
     setSelectedArticleId(null)
-    setShowAdminLogin(false)
+    setAdminAuthMode(null)
     setShowArticleManagement(false)
     window.history.pushState({}, '', window.location.pathname)
     window.scrollTo(0, 0)
@@ -163,7 +163,7 @@ function App() {
     setMemberView(null)
     setAuthMode(null)
     setSelectedArticleId(null)
-    setShowAdminLogin(false)
+    setAdminAuthMode(null)
     setShowArticleManagement(true)
     window.history.pushState({}, '', '?admin=articles')
     window.scrollTo(0, 0)
@@ -181,7 +181,8 @@ function App() {
       const id = params.get('article')
       const mode = params.get('auth')
       const member = params.get('member')
-      setShowAdminLogin(params.get('admin') === 'login')
+      const adminMode = params.get('admin')
+      setAdminAuthMode(adminMode === 'login' || adminMode === 'signup' ? adminMode : null)
       setShowArticleManagement(params.get('admin') === 'articles')
       setMemberView(member === 'profile' || member === 'reset-password' ? member : null)
       setSelectedArticleId(id ? Number(id) : null)
@@ -205,8 +206,17 @@ function App() {
     )
   }
 
-  if (showAdminLogin) {
-    return <AdminLoginPage onAuthenticated={openArticleManagement} />
+  if (adminAuthMode) {
+    return (
+      <AuthPage
+        key={`admin-${adminAuthMode}`}
+        mode={adminAuthMode}
+        audience="admin"
+        onBack={closeArticleManagement}
+        onModeChange={openAdminAuth}
+        onAuthenticated={openArticleManagement}
+      />
+    )
   }
 
   if (showArticleManagement) {
@@ -215,7 +225,7 @@ function App() {
         onWebsite={closeArticleManagement}
         onLogout={() => {
           setShowArticleManagement(false)
-          openAdminLogin()
+          openAdminAuth('login')
         }}
       />
     )
@@ -264,7 +274,7 @@ function App() {
         <ArticleSection articles={articleList} onSelectArticle={openArticle} />
       </main>
 
-      <Footer onAdminLogin={openAdminLogin} />
+      <Footer onAdminLogin={() => openAdminAuth('login')} />
     </div>
   )
 }

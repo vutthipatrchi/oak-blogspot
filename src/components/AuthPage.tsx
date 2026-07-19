@@ -7,12 +7,13 @@ export type AuthMode = 'signup' | 'login'
 
 interface AuthPageProps {
   mode: AuthMode
+  audience?: 'member' | 'admin'
   onBack: () => void
   onModeChange: (mode: AuthMode) => void
   onAuthenticated: (member: MemberProfile) => void
 }
 
-export default function AuthPage({ mode, onBack, onModeChange, onAuthenticated }: AuthPageProps) {
+export default function AuthPage({ mode, audience = 'member', onBack, onModeChange, onAuthenticated }: AuthPageProps) {
   const isSignUp = mode === 'signup'
   const { t } = useTranslation()
   const [emailError, setEmailError] = useState('')
@@ -25,6 +26,14 @@ export default function AuthPage({ mode, onBack, onModeChange, onAuthenticated }
     const formData = new FormData(event.currentTarget)
 
     if (!isSignUp) {
+      if (audience === 'admin') {
+        const identifier = String(formData.get('identifier') ?? '').trim().toLowerCase()
+        const password = String(formData.get('password') ?? '')
+        if (identifier !== 'adminthompson@gmail.com' || password !== 'admin123') {
+          setEmailError(t('admin.incorrectTitle'))
+          return
+        }
+      }
       onAuthenticated(defaultMember)
       return
     }
@@ -87,7 +96,7 @@ export default function AuthPage({ mode, onBack, onModeChange, onAuthenticated }
             <button
               type="button"
               className="auth-form__submit auth-success__continue"
-              onClick={() => registeredMember && onAuthenticated(registeredMember)}
+                    onClick={() => registeredMember && onAuthenticated(registeredMember)}
             >
               {t('auth.continue')}
             </button>
