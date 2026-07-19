@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import ArticlePage from './components/ArticlePage'
 import ArticleSection from './components/ArticleSection'
 import AdminLoginPage from './components/AdminLoginPage'
+import ArticleManagementPage from './components/ArticleManagementPage'
 import AuthPage, { type AuthMode } from './components/AuthPage'
 import MemberPage, { type MemberView } from './components/MemberPage'
 import { Footer } from './components/Footer'
@@ -29,6 +30,9 @@ function App() {
   })
   const [showAdminLogin, setShowAdminLogin] = useState(
     () => new URLSearchParams(window.location.search).get('admin') === 'login',
+  )
+  const [showArticleManagement, setShowArticleManagement] = useState(
+    () => new URLSearchParams(window.location.search).get('admin') === 'articles',
   )
   const [authMode, setAuthMode] = useState<AuthMode | null>(() => {
     const mode = new URLSearchParams(window.location.search).get('auth')
@@ -69,6 +73,7 @@ function App() {
   const openArticle = useCallback((id: number) => {
     setMemberView(null)
     setShowAdminLogin(false)
+    setShowArticleManagement(false)
     setAuthMode(null)
     setSelectedArticleId(id)
     window.history.pushState({}, '', `?article=${id}`)
@@ -85,6 +90,7 @@ function App() {
   const openAuth = useCallback((mode: AuthMode) => {
     setMemberView(null)
     setShowAdminLogin(false)
+    setShowArticleManagement(false)
     setSelectedArticleId(null)
     setAuthMode(mode)
     window.history.pushState({}, '', `?auth=${mode}`)
@@ -102,6 +108,7 @@ function App() {
     setMemberView(null)
     setAuthMode(null)
     setSelectedArticleId(null)
+    setShowArticleManagement(false)
     setShowAdminLogin(true)
     window.history.pushState({}, '', '?admin=login')
     window.scrollTo(0, 0)
@@ -114,6 +121,7 @@ function App() {
     }
     setAuthMode(null)
     setShowAdminLogin(false)
+    setShowArticleManagement(false)
     setSelectedArticleId(null)
     setMemberView(view)
     window.history.pushState({}, '', `?member=${view}`)
@@ -146,12 +154,23 @@ function App() {
     setAuthMode(null)
     setSelectedArticleId(null)
     setShowAdminLogin(false)
+    setShowArticleManagement(false)
     window.history.pushState({}, '', window.location.pathname)
     window.scrollTo(0, 0)
   }, [])
 
-  const closeAdminLogin = useCallback(() => {
+  const openArticleManagement = useCallback(() => {
+    setMemberView(null)
+    setAuthMode(null)
+    setSelectedArticleId(null)
     setShowAdminLogin(false)
+    setShowArticleManagement(true)
+    window.history.pushState({}, '', '?admin=articles')
+    window.scrollTo(0, 0)
+  }, [])
+
+  const closeArticleManagement = useCallback(() => {
+    setShowArticleManagement(false)
     window.history.pushState({}, '', window.location.pathname)
     window.scrollTo(0, 0)
   }, [])
@@ -163,6 +182,7 @@ function App() {
       const mode = params.get('auth')
       const member = params.get('member')
       setShowAdminLogin(params.get('admin') === 'login')
+      setShowArticleManagement(params.get('admin') === 'articles')
       setMemberView(member === 'profile' || member === 'reset-password' ? member : null)
       setSelectedArticleId(id ? Number(id) : null)
       setAuthMode(mode === 'signup' || mode === 'login' ? mode : null)
@@ -186,7 +206,19 @@ function App() {
   }
 
   if (showAdminLogin) {
-    return <AdminLoginPage onBack={closeAdminLogin} />
+    return <AdminLoginPage onAuthenticated={openArticleManagement} />
+  }
+
+  if (showArticleManagement) {
+    return (
+      <ArticleManagementPage
+        onWebsite={closeArticleManagement}
+        onLogout={() => {
+          setShowArticleManagement(false)
+          openAdminLogin()
+        }}
+      />
+    )
   }
 
   if (authMode) {

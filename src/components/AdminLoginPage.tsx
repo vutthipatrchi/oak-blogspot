@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { LanguageSwitcher } from './LanguageSwitcher'
 
 interface AdminLoginPageProps {
-  onBack: () => void
+  onAuthenticated: () => void
 }
 
 const DEMO_ADMIN_EMAIL = 'adminthompson@gmail.com'
 const DEMO_ADMIN_PASSWORD = 'admin123'
 
-export default function AdminLoginPage({ onBack }: AdminLoginPageProps) {
+export default function AdminLoginPage({ onAuthenticated }: AdminLoginPageProps) {
   const { t } = useTranslation()
   const [loginError, setLoginError] = useState(false)
   const [loginSuccess, setLoginSuccess] = useState(false)
@@ -39,7 +39,7 @@ export default function AdminLoginPage({ onBack }: AdminLoginPageProps) {
           <span className="admin-login-card__eyebrow">{t('admin.panel')}</span>
           <h1 className="admin-login-card__title">{t('admin.loginSuccess')}</h1>
           <p className="admin-login-card__welcome">{t('admin.welcome')}</p>
-          <button type="button" className="admin-login-form__submit" onClick={onBack}>
+          <button type="button" className="admin-login-form__submit" onClick={onAuthenticated}>
             {t('auth.continue')}
           </button>
         </section>
