@@ -1,5 +1,9 @@
 # React + TypeScript + Vite
 
+The backend API and Supabase schema are maintained in the sibling
+`server-oak-blogspot` repository. Configure this frontend with
+`VITE_API_BASE_URL` and `VITE_ADMIN_API_KEY`.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

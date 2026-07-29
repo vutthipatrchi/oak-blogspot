@@ -25,6 +25,8 @@ export interface Article {
   authorAvatar: string
   authorBio: string[]
   date: string
+  publishedAt?: string | null
+  status?: 'draft' | 'published'
   likes: number
   sections: ArticleSection[]
   source?: { label: string; url: string }

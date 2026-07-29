@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import ArticlePage from './components/ArticlePage'
 import ArticleSection from './components/ArticleSection'
 import ArticleManagementPage from './components/ArticleManagementPage'
+import CreateArticlePage from './components/CreateArticlePage'
+import EditArticlePage from './components/EditArticlePage'
 import AuthPage, { type AuthMode } from './components/AuthPage'
 import MemberPage, { type MemberView } from './components/MemberPage'
 import { Footer } from './components/Footer'
@@ -9,12 +11,16 @@ import { NavBar } from './components/NavBar'
 import { HeroSection } from './components/HeroSection'
 import type { MemberProfile } from './data/member'
 import { articles as staticArticles } from './data/articles'
-import { fetchArticles } from './lib/articles'
+import { createArticle, deleteArticle as deleteArticleRequest, fetchArticles, updateArticle, type ArticleWriteInput } from './lib/articles'
 import { isSupabaseConfigured } from './lib/supabase'
 import './App.css'
 
 function App() {
   const [articleList, setArticleList] = useState(staticArticles)
+  const [articlesLoading, setArticlesLoading] = useState(
+    () => isSupabaseConfigured || Boolean(import.meta.env.VITE_API_BASE_URL),
+  )
+  const [articlesError, setArticlesError] = useState('')
   const [currentMember, setCurrentMember] = useState<MemberProfile | null>(() => {
     try {
       const savedMember = window.localStorage.getItem('hh.member')
@@ -34,6 +40,13 @@ function App() {
   const [showArticleManagement, setShowArticleManagement] = useState(
     () => new URLSearchParams(window.location.search).get('admin') === 'articles',
   )
+  const [showCreateArticle, setShowCreateArticle] = useState(
+    () => new URLSearchParams(window.location.search).get('admin') === 'create-article',
+  )
+  const [editArticleId, setEditArticleId] = useState<number | null>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('admin') === 'edit-article' ? Number(params.get('id')) || null : null
+  })
   const [authMode, setAuthMode] = useState<AuthMode | null>(() => {
     const mode = new URLSearchParams(window.location.search).get('auth')
     return mode === 'signup' || mode === 'login' ? mode : null
@@ -54,15 +67,18 @@ function App() {
     if (!isSupabaseConfigured && !import.meta.env.VITE_API_BASE_URL) return
 
     let ignore = false
-
     fetchArticles()
       .then((loadedArticles) => {
-        if (!ignore && loadedArticles.length > 0) {
+        if (!ignore) {
           setArticleList(loadedArticles)
         }
       })
       .catch((error: unknown) => {
         console.warn('Unable to load articles. Falling back to static articles.', error)
+        if (!ignore) setArticlesError(error instanceof Error ? error.message : 'Unable to load articles.')
+      })
+      .finally(() => {
+        if (!ignore) setArticlesLoading(false)
       })
 
     return () => {
@@ -74,6 +90,8 @@ function App() {
     setMemberView(null)
     setAdminAuthMode(null)
     setShowArticleManagement(false)
+    setShowCreateArticle(false)
+    setEditArticleId(null)
     setAuthMode(null)
     setSelectedArticleId(id)
     window.history.pushState({}, '', `?article=${id}`)
@@ -91,6 +109,8 @@ function App() {
     setMemberView(null)
     setAdminAuthMode(null)
     setShowArticleManagement(false)
+    setShowCreateArticle(false)
+    setEditArticleId(null)
     setSelectedArticleId(null)
     setAuthMode(mode)
     window.history.pushState({}, '', `?auth=${mode}`)
@@ -109,6 +129,8 @@ function App() {
     setAuthMode(null)
     setSelectedArticleId(null)
     setShowArticleManagement(false)
+    setShowCreateArticle(false)
+    setEditArticleId(null)
     setAdminAuthMode(mode)
     window.history.pushState({}, '', `?admin=${mode}`)
     window.scrollTo(0, 0)
@@ -155,6 +177,8 @@ function App() {
     setSelectedArticleId(null)
     setAdminAuthMode(null)
     setShowArticleManagement(false)
+    setShowCreateArticle(false)
+    setEditArticleId(null)
     window.history.pushState({}, '', window.location.pathname)
     window.scrollTo(0, 0)
   }, [])
@@ -165,12 +189,55 @@ function App() {
     setSelectedArticleId(null)
     setAdminAuthMode(null)
     setShowArticleManagement(true)
+    setShowCreateArticle(false)
+    setEditArticleId(null)
     window.history.pushState({}, '', '?admin=articles')
     window.scrollTo(0, 0)
   }, [])
 
+  const openCreateArticle = useCallback(() => {
+    setAdminAuthMode(null)
+    setShowArticleManagement(false)
+    setShowCreateArticle(true)
+    setEditArticleId(null)
+    window.history.pushState({}, '', '?admin=create-article')
+    window.scrollTo(0, 0)
+  }, [])
+
+  const openEditArticle = useCallback((id: number) => {
+    setAdminAuthMode(null)
+    setShowArticleManagement(false)
+    setShowCreateArticle(false)
+    setEditArticleId(id)
+    window.history.pushState({}, '', `?admin=edit-article&id=${id}`)
+    window.scrollTo(0, 0)
+  }, [])
+
+  const saveCreatedArticle = useCallback(async (input: ArticleWriteInput) => {
+    const article = await createArticle(input)
+    setArticleList((current) => [article, ...current.filter((item) => item.id !== article.id)])
+  }, [])
+
+  const saveEditedArticle = useCallback(async (id: number, input: ArticleWriteInput) => {
+    const article = await updateArticle(id, input)
+    setArticleList((current) => current.map((item) => item.id === id ? article : item))
+  }, [])
+
+  const deleteArticle = useCallback(async (id: number) => {
+    setArticlesError('')
+    try {
+      await deleteArticleRequest(id)
+      setArticleList((current) => current.filter((item) => item.id !== id))
+    } catch (error) {
+      setArticlesError(error instanceof Error ? error.message : 'Unable to delete article.')
+      throw error
+    }
+  }, [])
+
   const closeArticleManagement = useCallback(() => {
     setShowArticleManagement(false)
+    setShowCreateArticle(false)
+    setEditArticleId(null)
     window.history.pushState({}, '', window.location.pathname)
     window.scrollTo(0, 0)
   }, [])
@@ -184,6 +251,8 @@ function App() {
       const adminMode = params.get('admin')
       setAdminAuthMode(adminMode === 'login' || adminMode === 'signup' ? adminMode : null)
       setShowArticleManagement(params.get('admin') === 'articles')
+      setShowCreateArticle(params.get('admin') === 'create-article')
+      setEditArticleId(params.get('admin') === 'edit-article' ? Number(params.get('id')) || null : null)
       setMemberView(member === 'profile' || member === 'reset-password' ? member : null)
       setSelectedArticleId(id ? Number(id) : null)
       setAuthMode(mode === 'signup' || mode === 'login' ? mode : null)
@@ -223,12 +292,50 @@ function App() {
     return (
       <ArticleManagementPage
         onWebsite={closeArticleManagement}
+        onCreate={openCreateArticle}
+        onEdit={openEditArticle}
+        onDelete={deleteArticle}
+        articles={articleList}
+        loading={articlesLoading}
+        error={articlesError}
         onLogout={() => {
           setShowArticleManagement(false)
           openAdminAuth('login')
         }}
       />
     )
+  }
+
+  if (showCreateArticle) {
+    return (
+      <CreateArticlePage
+        onArticles={openArticleManagement}
+        onWebsite={closeArticleManagement}
+        onLogout={() => {
+          setShowCreateArticle(false)
+          openAdminAuth('login')
+        }}
+        onSave={saveCreatedArticle}
+      />
+    )
+  }
+
+  if (editArticleId !== null) {
+    const article = articleList.find((item) => item.id === editArticleId)
+    if (article) {
+      return (
+        <EditArticlePage
+          article={article}
+          onArticles={openArticleManagement}
+          onWebsite={closeArticleManagement}
+          onLogout={() => openAdminAuth('login')}
+          onDelete={() => {
+            return deleteArticle(article.id).then(openArticleManagement)
+          }}
+          onSave={(input) => saveEditedArticle(article.id, input)}
+        />
+      )
+    }
   }
 
   if (authMode) {

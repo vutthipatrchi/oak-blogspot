@@ -19,6 +19,7 @@ interface SupabaseArticleRow {
   category: string | null
   tags: string[] | null
   title: string | null
+  status: 'draft' | 'published' | null
   excerpt: string | null
   image_url: string | null
   author: string | null
@@ -94,12 +95,14 @@ function toArticle(row: SupabaseArticleRow): Article {
     category: toCategory(row.category),
     tags: row.tags ?? [],
     title: row.title ?? '',
+    status: row.status ?? (row.published_at ? 'published' : 'draft'),
     excerpt: row.excerpt ?? '',
     image: row.image_url ?? '',
     author: row.author ?? '',
     authorAvatar: row.author_avatar ?? '',
     authorBio: row.author_bio ?? [],
     date: row.display_date ?? formatDate(row.published_at),
+    publishedAt: row.published_at,
     likes: row.likes ?? 0,
     sections: toSections(row.sections),
     source: toSource(row.source),
@@ -119,6 +122,7 @@ export async function fetchArticlesFromSupabase(): Promise<Article[]> {
       category,
       tags,
       title,
+      status,
       excerpt,
       image_url,
       author,
@@ -164,4 +168,61 @@ export async function fetchArticles(): Promise<Article[]> {
   return apiBaseUrl
     ? fetchArticlesFromBackend()
     : fetchArticlesFromSupabase()
+}
+
+export interface ArticleWriteInput {
+  category: ArticleCategory
+  title: string
+  excerpt: string
+  image: string
+  author: string
+  status: 'draft' | 'published'
+  sections: ArticleSection[]
+}
+
+function adminHeaders(): HeadersInit {
+  const adminApiKey = import.meta.env.VITE_ADMIN_API_KEY
+  if (!adminApiKey) throw new Error('VITE_ADMIN_API_KEY is not configured.')
+
+  return {
+    'Content-Type': 'application/json',
+    'x-admin-api-key': adminApiKey,
+  }
+}
+
+async function readApiError(response: Response): Promise<Error> {
+  const payload = await response.json().catch(() => null) as { error?: string } | null
+  return new Error(payload?.error ?? `Backend API returned ${response.status}.`)
+}
+
+async function writeArticle(path: string, method: 'POST' | 'PATCH', input: ArticleWriteInput): Promise<Article> {
+  if (!apiBaseUrl) throw new Error('VITE_API_BASE_URL is not configured.')
+
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method,
+    headers: adminHeaders(),
+    body: JSON.stringify(input),
+  })
+  if (!response.ok) throw await readApiError(response)
+
+  const payload = await response.json() as { article: Article }
+  return payload.article
+}
+
+export function createArticle(input: ArticleWriteInput): Promise<Article> {
+  return writeArticle('/api/articles', 'POST', input)
+}
+
+export function updateArticle(id: number, input: ArticleWriteInput): Promise<Article> {
+  return writeArticle(`/api/articles/${id}`, 'PATCH', input)
+}
+
+export async function deleteArticle(id: number): Promise<void> {
+  if (!apiBaseUrl) throw new Error('VITE_API_BASE_URL is not configured.')
+
+  const response = await fetch(`${apiBaseUrl}/api/articles/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(),
+  })
+  if (!response.ok) throw await readApiError(response)
 }
