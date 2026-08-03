@@ -8,6 +8,7 @@ export interface ArticleSection {
 
 export interface Comment {
   id: number
+  memberId?: string | null
   author: string
   avatar: string
   date: string

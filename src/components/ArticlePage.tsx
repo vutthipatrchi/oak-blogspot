@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 're
 import { useTranslation } from 'react-i18next'
 import type { Article } from '../data/articles'
 import type { MemberProfile } from '../data/member'
+import { createArticleComment, toggleArticleLike } from '../lib/articles'
 import type { AuthMode } from './AuthPage'
 import { Footer } from './Footer'
 import { SiteHeader } from './SiteHeader'
@@ -77,7 +78,9 @@ export default function ArticlePage({
   const { t } = useTranslation()
   const [likes, setLikes] = useState(article.likes)
   const [liked, setLiked] = useState(false)
+  const [comments, setComments] = useState(article.comments)
   const [commentText, setCommentText] = useState('')
+  const [interactionError, setInteractionError] = useState('')
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [showCommentAuth, setShowCommentAuth] = useState(false)
   const closeModalRef = useRef<HTMLButtonElement>(null)
@@ -100,13 +103,18 @@ export default function ArticlePage({
     }
   }, [showCommentAuth])
 
-  const handleLike = () => {
-    if (liked) {
-      setLikes((prev) => prev - 1)
-      setLiked(false)
-    } else {
-      setLikes((prev) => prev + 1)
-      setLiked(true)
+  const handleLike = async () => {
+    if (!member) {
+      setShowCommentAuth(true)
+      return
+    }
+    setInteractionError('')
+    try {
+      const result = await toggleArticleLike(article.id)
+      setLikes(result.likes)
+      setLiked(result.liked)
+    } catch (error) {
+      setInteractionError(error instanceof Error ? error.message : 'Unable to update like.')
     }
   }
 
@@ -122,9 +130,22 @@ export default function ArticlePage({
     }
   }
 
-  const handleSendComment = (e: FormEvent) => {
+  const handleSendComment = async (e: FormEvent) => {
     e.preventDefault()
-    setShowCommentAuth(true)
+    if (!member) {
+      setShowCommentAuth(true)
+      return
+    }
+    const text = commentText.trim()
+    if (!text) return
+    setInteractionError('')
+    try {
+      const comment = await createArticleComment(article.id, text)
+      setComments((current) => [...current, comment])
+      setCommentText('')
+    } catch (error) {
+      setInteractionError(error instanceof Error ? error.message : 'Unable to post comment.')
+    }
   }
 
   const handleModalBackdrop = (event: MouseEvent<HTMLDivElement>) => {
@@ -201,7 +222,7 @@ export default function ArticlePage({
                 <button
                   type="button"
                   className={`action-btn action-btn--like${liked ? ' action-btn--liked' : ''}`}
-                  onClick={handleLike}
+                  onClick={() => void handleLike()}
                 >
                   <SmileIcon />
                   <span>{likes.toLocaleString()}</span>
@@ -235,8 +256,8 @@ export default function ArticlePage({
                     placeholder={t('article.commentPlaceholder')}
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
-                    onClick={() => setShowCommentAuth(true)}
-                    onFocus={() => setShowCommentAuth(true)}
+                    onClick={() => { if (!member) setShowCommentAuth(true) }}
+                    onFocus={() => { if (!member) setShowCommentAuth(true) }}
                     rows={4}
                   />
                   <div className="comment-form__footer">
@@ -246,8 +267,12 @@ export default function ArticlePage({
                   </div>
                 </form>
 
+                {interactionError && (
+                  <p className="member-message member-message--error" role="alert">{interactionError}</p>
+                )}
+
                 <ul className="comments__list">
-                  {article.comments.map((comment) => (
+                  {comments.map((comment) => (
                     <li key={comment.id} className="comment-item">
                       <img
                         src={comment.avatar}

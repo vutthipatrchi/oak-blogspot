@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Article, ArticleSection, Category } from '@/data/articles'
+import type { Article, ArticleSection, Category, Comment } from '@/data/articles'
 import { authorizationHeaders, toApiError } from './auth'
 
 type ArticleCategory = Exclude<Category, 'Highlight'>
@@ -60,6 +60,45 @@ export async function deleteArticle(id: number): Promise<void> {
     await axios.delete(`${apiBaseUrl}/api/articles/${id}`, {
       headers: authorizationHeaders(),
     })
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
+export async function createArticleComment(articleId: number, text: string): Promise<Comment> {
+  if (!apiBaseUrl) throw new Error('VITE_API_BASE_URL is not configured.')
+  try {
+    const response = await axios.post<{ comment: Comment }>(
+      `${apiBaseUrl}/api/articles/${articleId}/comments`,
+      { text },
+      { headers: authorizationHeaders() },
+    )
+    return response.data.comment
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
+export async function deleteArticleComment(articleId: number, commentId: number): Promise<void> {
+  if (!apiBaseUrl) throw new Error('VITE_API_BASE_URL is not configured.')
+  try {
+    await axios.delete(`${apiBaseUrl}/api/articles/${articleId}/comments/${commentId}`, {
+      headers: authorizationHeaders(),
+    })
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
+export async function toggleArticleLike(articleId: number): Promise<{ liked: boolean; likes: number }> {
+  if (!apiBaseUrl) throw new Error('VITE_API_BASE_URL is not configured.')
+  try {
+    const response = await axios.post<{ liked: boolean; likes: number }>(
+      `${apiBaseUrl}/api/articles/${articleId}/like`,
+      undefined,
+      { headers: authorizationHeaders() },
+    )
+    return response.data
   } catch (error) {
     throw toApiError(error)
   }
