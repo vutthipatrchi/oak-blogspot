@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { defaultMember, type MemberProfile } from '../data/member'
+import { signInMember, signUpMember, type StoredAuth } from '../lib/auth'
 import { SiteHeader } from './SiteHeader'
 
 export type AuthMode = 'signup' | 'login'
@@ -10,51 +10,45 @@ interface AuthPageProps {
   audience?: 'member' | 'admin'
   onBack: () => void
   onModeChange: (mode: AuthMode) => void
-  onAuthenticated: (member: MemberProfile) => void
+  onAuthenticated: (auth: StoredAuth) => void
 }
 
 export default function AuthPage({ mode, audience = 'member', onBack, onModeChange, onAuthenticated }: AuthPageProps) {
-  const isSignUp = mode === 'signup'
+  const isSignUp = mode === 'signup' && audience === 'member'
   const { t } = useTranslation()
   const [emailError, setEmailError] = useState('')
   const [registrationSuccess, setRegistrationSuccess] = useState(false)
-  const [registeredMember, setRegisteredMember] = useState<MemberProfile | null>(null)
+  const [registeredAuth, setRegisteredAuth] = useState<StoredAuth | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
     const formData = new FormData(event.currentTarget)
-
-    if (!isSignUp) {
-      if (audience === 'admin') {
-        const identifier = String(formData.get('identifier') ?? '').trim().toLowerCase()
-        const password = String(formData.get('password') ?? '')
-        if (identifier !== 'adminthompson@gmail.com' || password !== 'admin123') {
-          setEmailError(t('admin.incorrectTitle'))
-          return
-        }
-      }
-      onAuthenticated(defaultMember)
-      return
-    }
-
-    const email = String(formData.get('email') ?? '').trim().toLowerCase()
-
-    if (email === 'moodeng.cute@gmail.com') {
-      setEmailError(t('auth.emailTaken'))
-      const emailInput = event.currentTarget.elements.namedItem('email')
-      if (emailInput instanceof HTMLInputElement) emailInput.focus()
-      return
-    }
-
+    setSubmitting(true)
     setEmailError('')
-    setRegisteredMember({
-      ...defaultMember,
-      name: String(formData.get('name') ?? '').trim(),
-      username: String(formData.get('username') ?? '').trim(),
-      email,
-    })
-    setRegistrationSuccess(true)
+    try {
+      if (isSignUp) {
+        const auth = await signUpMember({
+          name: String(formData.get('name') ?? '').trim(),
+          username: String(formData.get('username') ?? '').trim(),
+          email: String(formData.get('email') ?? '').trim(),
+          password: String(formData.get('password') ?? ''),
+        })
+        setRegisteredAuth(auth)
+        setRegistrationSuccess(true)
+      } else {
+        const auth = await signInMember(
+          String(formData.get('identifier') ?? '').trim(),
+          String(formData.get('password') ?? ''),
+          audience,
+        )
+        onAuthenticated(auth)
+      }
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : t('admin.incorrectTitle'))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -65,7 +59,7 @@ export default function AuthPage({ mode, audience = 'member', onBack, onModeChan
           activeAuthMode={mode}
           onHome={onBack}
           onLogin={() => onModeChange('login')}
-          onSignUp={() => onModeChange('signup')}
+          onSignUp={audience === 'member' ? () => onModeChange('signup') : undefined}
         />
       </div>
 
@@ -81,7 +75,7 @@ export default function AuthPage({ mode, audience = 'member', onBack, onModeChan
             <button
               type="button"
               className="auth-form__submit auth-success__continue"
-                    onClick={() => registeredMember && onAuthenticated(registeredMember)}
+              onClick={() => registeredAuth && onAuthenticated(registeredAuth)}
             >
               {t('auth.continue')}
             </button>
@@ -142,16 +136,17 @@ export default function AuthPage({ mode, audience = 'member', onBack, onModeChan
                 name="password"
                 placeholder={t('auth.password')}
                 autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                minLength={8}
                 required
               />
             </label>
 
-            <button type="submit" className="auth-form__submit">
-              {isSignUp ? t('common.signup') : t('common.login')}
+            <button type="submit" className="auth-form__submit" disabled={submitting}>
+              {submitting ? '...' : isSignUp ? t('common.signup') : t('common.login')}
             </button>
           </form>
 
-          <p className="auth-card__switch">
+          {audience === 'member' && <p className="auth-card__switch">
             {isSignUp ? t('auth.alreadyHaveAccount') : t('auth.dontHaveAccount')}{' '}
             <button
               type="button"
@@ -160,7 +155,7 @@ export default function AuthPage({ mode, audience = 'member', onBack, onModeChan
             >
               {isSignUp ? t('common.login') : t('common.signup')}
             </button>
-          </p>
+          </p>}
         </section>
         )}
       </main>

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { Article, ArticleSection, Category } from '@/data/articles'
+import { authorizationHeaders, toApiError } from './auth'
 
 type ArticleCategory = Exclude<Category, 'Highlight'>
 
@@ -28,24 +29,6 @@ export interface ArticleWriteInput {
   sections: ArticleSection[]
 }
 
-function adminHeaders(): Record<string, string> {
-  const adminApiKey = import.meta.env.VITE_ADMIN_API_KEY
-  if (!adminApiKey) throw new Error('VITE_ADMIN_API_KEY is not configured.')
-
-  return {
-    'Content-Type': 'application/json',
-    'x-admin-api-key': adminApiKey,
-  }
-}
-
-function toApiError(error: unknown): Error {
-  if (axios.isAxiosError<{ error?: string }>(error) && error.response) {
-    return new Error(error.response.data?.error ?? `Backend API returned ${error.response.status}.`)
-  }
-
-  return error instanceof Error ? error : new Error('Backend API request failed.')
-}
-
 async function writeArticle(path: string, method: 'POST' | 'PATCH', input: ArticleWriteInput): Promise<Article> {
   if (!apiBaseUrl) throw new Error('VITE_API_BASE_URL is not configured.')
 
@@ -53,7 +36,7 @@ async function writeArticle(path: string, method: 'POST' | 'PATCH', input: Artic
     const response = await axios.request<{ article: Article }>({
       url: `${apiBaseUrl}${path}`,
       method,
-      headers: adminHeaders(),
+      headers: { 'Content-Type': 'application/json', ...authorizationHeaders() },
       data: input,
     })
     return response.data.article
@@ -75,7 +58,7 @@ export async function deleteArticle(id: number): Promise<void> {
 
   try {
     await axios.delete(`${apiBaseUrl}/api/articles/${id}`, {
-      headers: adminHeaders(),
+      headers: authorizationHeaders(),
     })
   } catch (error) {
     throw toApiError(error)

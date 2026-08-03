@@ -11,7 +11,8 @@ interface MemberPageProps {
   view: MemberView
   onBack: () => void
   onNavigate: (view: MemberView) => void
-  onSave: (member: MemberProfile) => void
+  onSave: (member: MemberProfile) => Promise<void>
+  onPasswordChange: (currentPassword: string, newPassword: string) => Promise<unknown>
   onLogout: () => void
 }
 
@@ -23,7 +24,7 @@ function PasswordIcon() {
   return <RotateCcw className="member-menu__icon" size={20} strokeWidth={1.6} aria-hidden="true" />
 }
 
-export default function MemberPage({ member, view, onBack, onNavigate, onSave, onLogout }: MemberPageProps) {
+export default function MemberPage({ member, view, onBack, onNavigate, onSave, onPasswordChange, onLogout }: MemberPageProps) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState(member)
   const [message, setMessage] = useState('')
@@ -42,13 +43,18 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
     reader.readAsDataURL(file)
   }
 
-  const handleProfileSave = (event: FormEvent<HTMLFormElement>) => {
+  const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    onSave(draft)
-    setMessage(t('member.profileSaved'))
+    setMessage('')
+    try {
+      await onSave(draft)
+      setMessage(t('member.profileSaved'))
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to save profile.')
+    }
   }
 
-  const handlePasswordSave = (event: FormEvent<HTMLFormElement>) => {
+  const handlePasswordSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const password = String(formData.get('newPassword') ?? '')
@@ -59,8 +65,13 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
       return
     }
 
-    event.currentTarget.reset()
-    setMessage(t('member.passwordUpdated'))
+    try {
+      await onPasswordChange(String(formData.get('currentPassword') ?? ''), password)
+      event.currentTarget.reset()
+      setMessage(t('member.passwordUpdated'))
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to update password.')
+    }
   }
 
   return (

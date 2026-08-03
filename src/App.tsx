@@ -10,6 +10,15 @@ import { HeroSection } from './components/HeroSection'
 import { SiteHeader } from './components/SiteHeader'
 import type { MemberProfile } from './data/member'
 import { articles as staticArticles } from './data/articles'
+import {
+  clearAuth,
+  getCurrentMember,
+  loadAuth,
+  saveAuth,
+  updateMemberPassword,
+  updateMemberProfile,
+  type StoredAuth,
+} from './lib/auth'
 import { createArticle, deleteArticle as deleteArticleRequest, fetchArticles, updateArticle, type ArticleWriteInput } from './lib/articles'
 import './App.css'
 
@@ -56,15 +65,9 @@ function App() {
     () => Boolean(import.meta.env.VITE_API_BASE_URL),
   )
   const [articlesError, setArticlesError] = useState('')
-  const [currentMember, setCurrentMember] = useState<MemberProfile | null>(() => {
-    try {
-      const savedMember = window.localStorage.getItem('hh.member')
-      return savedMember ? JSON.parse(savedMember) as MemberProfile : null
-    } catch {
-      return null
-    }
-  })
+  const [currentAuth, setCurrentAuth] = useState<StoredAuth | null>(loadAuth)
   const [view, setView] = useState<AppView>(viewFromLocation)
+  const currentMember = currentAuth?.member ?? null
 
   const selectedArticle = view.page === 'article'
     ? articleList.find((article) => article.id === view.id)
@@ -93,6 +96,28 @@ function App() {
       ignore = true
     }
   }, [])
+
+  useEffect(() => {
+    const accessToken = currentAuth?.session.accessToken
+    if (!accessToken) return
+    let ignore = false
+    getCurrentMember()
+      .then((member) => {
+        if (ignore) return
+        setCurrentAuth((current) => {
+          if (!current || current.session.accessToken !== accessToken) return current
+          const refreshed = { ...current, member }
+          saveAuth(refreshed)
+          return refreshed
+        })
+      })
+      .catch(() => {
+        if (ignore) return
+        clearAuth()
+        setCurrentAuth(null)
+      })
+    return () => { ignore = true }
+  }, [currentAuth?.session.accessToken])
 
   const navigate = useCallback((nextView: AppView, search = '') => {
     setView(nextView)
@@ -125,19 +150,25 @@ function App() {
     navigate({ page: 'member', view: memberView }, `?member=${memberView}`)
   }, [currentMember, navigate, openAuth])
 
-  const saveMember = useCallback((member: MemberProfile) => {
-    setCurrentMember(member)
-    window.localStorage.setItem('hh.member', JSON.stringify(member))
+  const saveMember = useCallback(async (member: MemberProfile) => {
+    const savedMember = await updateMemberProfile(member)
+    setCurrentAuth((current) => {
+      if (!current) return current
+      const next = { ...current, member: savedMember }
+      saveAuth(next)
+      return next
+    })
   }, [])
 
-  const authenticateMember = useCallback((member: MemberProfile) => {
-    saveMember(member)
+  const authenticateMember = useCallback((auth: StoredAuth) => {
+    setCurrentAuth(auth)
+    saveAuth(auth)
     navigate({ page: 'member', view: 'profile' }, '?member=profile')
-  }, [navigate, saveMember])
+  }, [navigate])
 
   const logoutMember = useCallback(() => {
-    setCurrentMember(null)
-    window.localStorage.removeItem('hh.member')
+    setCurrentAuth(null)
+    clearAuth()
     goHome()
   }, [goHome])
 
@@ -145,6 +176,12 @@ function App() {
     () => navigate({ page: 'admin-articles' }, '?admin=articles'),
     [navigate],
   )
+
+  const authenticateAdmin = useCallback((auth: StoredAuth) => {
+    setCurrentAuth(auth)
+    saveAuth(auth)
+    openArticleManagement()
+  }, [openArticleManagement])
 
   const openCreateArticle = useCallback(
     () => navigate({ page: 'admin-create' }, '?admin=create-article'),
@@ -192,6 +229,7 @@ function App() {
         onBack={goHome}
         onNavigate={openMemberView}
         onSave={saveMember}
+        onPasswordChange={updateMemberPassword}
         onLogout={logoutMember}
       />
     )
@@ -206,7 +244,7 @@ function App() {
         audience={view.audience}
         onBack={goHome}
         onModeChange={isAdmin ? openAdminAuth : openAuth}
-        onAuthenticated={isAdmin ? openArticleManagement : authenticateMember}
+        onAuthenticated={isAdmin ? authenticateAdmin : authenticateMember}
       />
     )
   }
