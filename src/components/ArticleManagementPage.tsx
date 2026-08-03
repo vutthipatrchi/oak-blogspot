@@ -1,19 +1,13 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import {
-  Bell,
-  BookOpen,
   ChevronDown,
   Edit2,
-  ExternalLink,
-  Folder,
-  LogOut,
   Plus,
-  RotateCcw,
   Search,
   Trash2,
-  User,
 } from 'lucide-react'
 import DeleteArticleDialog from './DeleteArticleDialog'
+import AdminLayout from './AdminLayout'
 import type { Article } from '@/data/articles'
 
 interface ArticleManagementPageProps {
@@ -30,97 +24,8 @@ interface ArticleManagementPageProps {
 type ArticleStatus = 'Published' | 'Draft'
 type AdminArticleCategory = Article['category']
 
-export interface AdminArticle {
-  id: number
-  title: string
-  category: 'Cat' | 'General' | 'Inspiration'
-  status: ArticleStatus
-  image: string
-  introduction: string
-  content: string
-}
-
-// Shared by the edit route so it can hydrate the selected article form.
-// eslint-disable-next-line react-refresh/only-export-components
-export const adminArticles: AdminArticle[] = [
-  {
-    id: 1,
-    title: 'Understanding Cat Behavior: Why Your Feline Friend Acts the Way They D...',
-    category: 'Cat',
-    status: 'Published',
-    image: '/article-images/article-1.jpg',
-    introduction: 'Explore the behavior and personality of cats through practical observations and research.',
-    content: 'Understanding cat behavior begins with observing body language, routines, and the way cats communicate with people and their environment.',
-  },
-  {
-    id: 2,
-    title: 'The Fascinating World of Cats: Why We Love Our Furry Friends',
-    category: 'Cat',
-    status: 'Published',
-    image: '/article-images/article-2.jpg',
-    introduction: 'Cats have captivated human hearts for thousands of years. Discover the traits and quirks that make them fascinating.',
-    content: '1. Independent Yet Affectionate\n\nCats balance independence and affection in a way that makes them wonderful companions.\n\n2. Playful Personalities\n\nCats are naturally curious and playful throughout their lives.\n\n3. Communication Through Body Language\n\nTheir posture, eyes, ears, and tail reveal how they feel.',
-  },
-  {
-    id: 3,
-    title: "Finding Motivation: How to Stay Inspired Through Life's Challenges",
-    category: 'General',
-    status: 'Published',
-    image: '/article-images/article-3.jpg',
-    introduction: 'Simple approaches for finding motivation and staying inspired through difficult seasons.',
-    content: 'Motivation grows through small, repeatable actions. Begin with a clear goal, create a sustainable routine, and celebrate progress.',
-  },
-  {
-    id: 4,
-    title: 'The Science of the Cat’s Purr: How It Benefits Cats and Humans Alike',
-    category: 'Cat',
-    status: 'Published',
-    image: '/article-images/article-4.jpg',
-    introduction: 'A closer look at why cats purr and how the vibration may benefit cats and humans.',
-    content: 'A cat’s purr communicates comfort, connection, and sometimes a need for reassurance.',
-  },
-  {
-    id: 5,
-    title: 'Top 10 Health Tips to Keep Your Cat Happy and Healthy',
-    category: 'Cat',
-    status: 'Published',
-    image: '/article-images/article-5.jpeg',
-    introduction: 'Practical health tips that support a long, comfortable, and active life for your cat.',
-    content: 'Balanced nutrition, preventative veterinary care, exercise, and a safe environment form the foundation of feline health.',
-  },
-  {
-    id: 6,
-    title: 'Unlocking Creativity: Simple Habits to Spark Inspiration Daily',
-    category: 'Inspiration',
-    status: 'Published',
-    image: '/article-images/article-6.jpg',
-    introduction: 'Build a creative practice with small habits that make inspiration easier to find every day.',
-    content: 'Creativity becomes more dependable when it is supported by curiosity, rest, experimentation, and consistent practice.',
-  },
-]
-
 const statusOptions: Array<ArticleStatus | 'All'> = ['All', 'Published', 'Draft']
 const categoryOptions: Array<AdminArticleCategory | 'All'> = ['All', 'Thinker', 'Writer', 'Literature']
-
-function SidebarButton({
-  active = false,
-  icon,
-  label,
-}: {
-  active?: boolean
-  icon: ReactNode
-  label: string
-}) {
-  return (
-    <button
-      type="button"
-      className={`admin-shell__nav-item${active ? ' admin-shell__nav-item--active' : ''}`}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
-  )
-}
 
 export default function ArticleManagementPage({ onWebsite, onLogout, onCreate, onEdit, onDelete, articles, loading, error }: ArticleManagementPageProps) {
   const [searchQuery, setSearchQuery] = useState('')
@@ -146,35 +51,7 @@ export default function ArticleManagementPage({ onWebsite, onLogout, onCreate, o
   }, [articles, categoryFilter, searchQuery, statusFilter])
 
   return (
-    <div className="admin-shell">
-      <aside className="admin-shell__sidebar" aria-label="Admin navigation">
-        <div>
-          <button type="button" className="admin-shell__brand" onClick={onWebsite}>
-            hh<span>.</span>
-          </button>
-          <p className="admin-shell__eyebrow">Admin panel</p>
-        </div>
-
-        <nav className="admin-shell__nav">
-          <SidebarButton active icon={<BookOpen size={20} strokeWidth={1.6} />} label="Article management" />
-          <SidebarButton icon={<Folder size={20} strokeWidth={1.6} />} label="Category management" />
-          <SidebarButton icon={<User size={20} strokeWidth={1.6} />} label="Profile" />
-          <SidebarButton icon={<Bell size={20} strokeWidth={1.6} />} label="Notification" />
-          <SidebarButton icon={<RotateCcw size={20} strokeWidth={1.6} />} label="Reset password" />
-        </nav>
-
-        <div className="admin-shell__footer">
-          <button type="button" className="admin-shell__footer-btn" onClick={onWebsite}>
-            <ExternalLink size={19} strokeWidth={1.6} />
-            <span>hh. website</span>
-          </button>
-          <button type="button" className="admin-shell__footer-btn" onClick={onLogout}>
-            <LogOut size={19} strokeWidth={1.6} />
-            <span>Log out</span>
-          </button>
-        </div>
-      </aside>
-
+    <AdminLayout onWebsite={onWebsite} onLogout={onLogout}>
       <main className="article-admin">
         <header className="article-admin__header">
           <h1>Article management</h1>
@@ -286,6 +163,6 @@ export default function ArticleManagementPage({ onWebsite, onLogout, onCreate, o
           }
         }}
       />
-    </div>
+    </AdminLayout>
   )
 }

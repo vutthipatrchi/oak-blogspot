@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { defaultMember, type MemberProfile } from '../data/member'
-import { LanguageSwitcher } from './LanguageSwitcher'
+import { SiteHeader } from './SiteHeader'
 
 export type AuthMode = 'signup' | 'login'
 
@@ -59,30 +59,15 @@ export default function AuthPage({ mode, audience = 'member', onBack, onModeChan
 
   return (
     <div className="auth-page">
-      <header className="auth-header">
-        <div className="page auth-header__inner">
-          <button type="button" className="logo auth-logo" onClick={onBack}>
-            hh.
-          </button>
-          <div className="header__actions">
-            <LanguageSwitcher />
-            <button
-              type="button"
-              className={`btn ${isSignUp ? 'btn--outline' : 'btn--solid'}`}
-              onClick={() => onModeChange('login')}
-            >
-              {t('common.login')}
-            </button>
-            <button
-              type="button"
-              className={`btn ${isSignUp ? 'btn--solid' : 'btn--outline'}`}
-              onClick={() => onModeChange('signup')}
-            >
-              {t('common.signup')}
-            </button>
-          </div>
-        </div>
-      </header>
+      <div className="auth-header">
+        <SiteHeader
+          className="page auth-header__inner"
+          activeAuthMode={mode}
+          onHome={onBack}
+          onLogin={() => onModeChange('login')}
+          onSignUp={() => onModeChange('signup')}
+        />
+      </div>
 
       <main className="auth-main">
         {registrationSuccess ? (

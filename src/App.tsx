@@ -2,23 +2,58 @@ import { useCallback, useEffect, useState } from 'react'
 import ArticlePage from './components/ArticlePage'
 import ArticleSection from './components/ArticleSection'
 import ArticleManagementPage from './components/ArticleManagementPage'
-import CreateArticlePage from './components/CreateArticlePage'
-import EditArticlePage from './components/EditArticlePage'
+import ArticleEditorPage from './components/ArticleEditorPage'
 import AuthPage, { type AuthMode } from './components/AuthPage'
 import MemberPage, { type MemberView } from './components/MemberPage'
 import { Footer } from './components/Footer'
-import { NavBar } from './components/NavBar'
 import { HeroSection } from './components/HeroSection'
+import { SiteHeader } from './components/SiteHeader'
 import type { MemberProfile } from './data/member'
 import { articles as staticArticles } from './data/articles'
 import { createArticle, deleteArticle as deleteArticleRequest, fetchArticles, updateArticle, type ArticleWriteInput } from './lib/articles'
-import { isSupabaseConfigured } from './lib/supabase'
 import './App.css'
+
+type AppView =
+  | { page: 'home' }
+  | { page: 'article'; id: number }
+  | { page: 'auth'; mode: AuthMode; audience: 'member' | 'admin' }
+  | { page: 'member'; view: MemberView }
+  | { page: 'admin-articles' }
+  | { page: 'admin-create' }
+  | { page: 'admin-edit'; id: number }
+
+function viewFromLocation(): AppView {
+  const params = new URLSearchParams(window.location.search)
+  const admin = params.get('admin')
+  const member = params.get('member')
+  const auth = params.get('auth')
+  const articleId = Number(params.get('article'))
+
+  if (admin === 'login' || admin === 'signup') {
+    return { page: 'auth', mode: admin, audience: 'admin' }
+  }
+  if (admin === 'articles') return { page: 'admin-articles' }
+  if (admin === 'create-article') return { page: 'admin-create' }
+  if (admin === 'edit-article') {
+    const id = Number(params.get('id'))
+    if (Number.isSafeInteger(id) && id > 0) return { page: 'admin-edit', id }
+  }
+  if (member === 'profile' || member === 'reset-password') {
+    return { page: 'member', view: member }
+  }
+  if (auth === 'signup' || auth === 'login') {
+    return { page: 'auth', mode: auth, audience: 'member' }
+  }
+  if (Number.isSafeInteger(articleId) && articleId > 0) {
+    return { page: 'article', id: articleId }
+  }
+  return { page: 'home' }
+}
 
 function App() {
   const [articleList, setArticleList] = useState(staticArticles)
   const [articlesLoading, setArticlesLoading] = useState(
-    () => isSupabaseConfigured || Boolean(import.meta.env.VITE_API_BASE_URL),
+    () => Boolean(import.meta.env.VITE_API_BASE_URL),
   )
   const [articlesError, setArticlesError] = useState('')
   const [currentMember, setCurrentMember] = useState<MemberProfile | null>(() => {
@@ -29,42 +64,14 @@ function App() {
       return null
     }
   })
-  const [memberView, setMemberView] = useState<MemberView | null>(() => {
-    const view = new URLSearchParams(window.location.search).get('member')
-    return view === 'profile' || view === 'reset-password' ? view : null
-  })
-  const [adminAuthMode, setAdminAuthMode] = useState<AuthMode | null>(() => {
-    const mode = new URLSearchParams(window.location.search).get('admin')
-    return mode === 'login' || mode === 'signup' ? mode : null
-  })
-  const [showArticleManagement, setShowArticleManagement] = useState(
-    () => new URLSearchParams(window.location.search).get('admin') === 'articles',
-  )
-  const [showCreateArticle, setShowCreateArticle] = useState(
-    () => new URLSearchParams(window.location.search).get('admin') === 'create-article',
-  )
-  const [editArticleId, setEditArticleId] = useState<number | null>(() => {
-    const params = new URLSearchParams(window.location.search)
-    return params.get('admin') === 'edit-article' ? Number(params.get('id')) || null : null
-  })
-  const [authMode, setAuthMode] = useState<AuthMode | null>(() => {
-    const mode = new URLSearchParams(window.location.search).get('auth')
-    return mode === 'signup' || mode === 'login' ? mode : null
-  })
-  const [selectedArticleId, setSelectedArticleId] = useState<number | null>(
-    () => {
-      const params = new URLSearchParams(window.location.search)
-      const id = params.get('article')
-      return id ? Number(id) : null
-    },
-  )
+  const [view, setView] = useState<AppView>(viewFromLocation)
 
-  const selectedArticle = selectedArticleId
-    ? articleList.find((article) => article.id === selectedArticleId)
+  const selectedArticle = view.page === 'article'
+    ? articleList.find((article) => article.id === view.id)
     : undefined
 
   useEffect(() => {
-    if (!isSupabaseConfigured && !import.meta.env.VITE_API_BASE_URL) return
+    if (!import.meta.env.VITE_API_BASE_URL) return
 
     let ignore = false
     fetchArticles()
@@ -86,75 +93,36 @@ function App() {
     }
   }, [])
 
-  const openArticle = useCallback((id: number) => {
-    setMemberView(null)
-    setAdminAuthMode(null)
-    setShowArticleManagement(false)
-    setShowCreateArticle(false)
-    setEditArticleId(null)
-    setAuthMode(null)
-    setSelectedArticleId(id)
-    window.history.pushState({}, '', `?article=${id}`)
+  const navigate = useCallback((nextView: AppView, search = '') => {
+    setView(nextView)
+    window.history.pushState({}, '', `${window.location.pathname}${search}`)
     window.scrollTo(0, 0)
   }, [])
 
-  const closeArticle = useCallback(() => {
-    setAuthMode(null)
-    setSelectedArticleId(null)
-    window.history.pushState({}, '', window.location.pathname)
-    window.scrollTo(0, 0)
-  }, [])
+  const goHome = useCallback(() => navigate({ page: 'home' }), [navigate])
 
-  const openAuth = useCallback((mode: AuthMode) => {
-    setMemberView(null)
-    setAdminAuthMode(null)
-    setShowArticleManagement(false)
-    setShowCreateArticle(false)
-    setEditArticleId(null)
-    setSelectedArticleId(null)
-    setAuthMode(mode)
-    window.history.pushState({}, '', `?auth=${mode}`)
-    window.scrollTo(0, 0)
-  }, [])
+  const openArticle = useCallback(
+    (id: number) => navigate({ page: 'article', id }, `?article=${id}`),
+    [navigate],
+  )
 
-  const closeAuth = useCallback(() => {
-    setAuthMode(null)
-    setSelectedArticleId(null)
-    window.history.pushState({}, '', window.location.pathname)
-    window.scrollTo(0, 0)
-  }, [])
+  const openAuth = useCallback(
+    (mode: AuthMode) => navigate({ page: 'auth', mode, audience: 'member' }, `?auth=${mode}`),
+    [navigate],
+  )
 
-  const openAdminAuth = useCallback((mode: AuthMode) => {
-    setMemberView(null)
-    setAuthMode(null)
-    setSelectedArticleId(null)
-    setShowArticleManagement(false)
-    setShowCreateArticle(false)
-    setEditArticleId(null)
-    setAdminAuthMode(mode)
-    window.history.pushState({}, '', `?admin=${mode}`)
-    window.scrollTo(0, 0)
-  }, [])
+  const openAdminAuth = useCallback(
+    (mode: AuthMode) => navigate({ page: 'auth', mode, audience: 'admin' }, `?admin=${mode}`),
+    [navigate],
+  )
 
-  const openMemberView = useCallback((view: MemberView) => {
+  const openMemberView = useCallback((memberView: MemberView) => {
     if (!currentMember) {
       openAuth('login')
       return
     }
-    setAuthMode(null)
-    setAdminAuthMode(null)
-    setShowArticleManagement(false)
-    setSelectedArticleId(null)
-    setMemberView(view)
-    window.history.pushState({}, '', `?member=${view}`)
-    window.scrollTo(0, 0)
-  }, [currentMember, openAuth])
-
-  const closeMemberView = useCallback(() => {
-    setMemberView(null)
-    window.history.pushState({}, '', window.location.pathname)
-    window.scrollTo(0, 0)
-  }, [])
+    navigate({ page: 'member', view: memberView }, `?member=${memberView}`)
+  }, [currentMember, navigate, openAuth])
 
   const saveMember = useCallback((member: MemberProfile) => {
     setCurrentMember(member)
@@ -163,55 +131,29 @@ function App() {
 
   const authenticateMember = useCallback((member: MemberProfile) => {
     saveMember(member)
-    setAuthMode(null)
-    setMemberView('profile')
-    window.history.pushState({}, '', '?member=profile')
-    window.scrollTo(0, 0)
-  }, [saveMember])
+    navigate({ page: 'member', view: 'profile' }, '?member=profile')
+  }, [navigate, saveMember])
 
   const logoutMember = useCallback(() => {
     setCurrentMember(null)
     window.localStorage.removeItem('hh.member')
-    setMemberView(null)
-    setAuthMode(null)
-    setSelectedArticleId(null)
-    setAdminAuthMode(null)
-    setShowArticleManagement(false)
-    setShowCreateArticle(false)
-    setEditArticleId(null)
-    window.history.pushState({}, '', window.location.pathname)
-    window.scrollTo(0, 0)
-  }, [])
+    goHome()
+  }, [goHome])
 
-  const openArticleManagement = useCallback(() => {
-    setMemberView(null)
-    setAuthMode(null)
-    setSelectedArticleId(null)
-    setAdminAuthMode(null)
-    setShowArticleManagement(true)
-    setShowCreateArticle(false)
-    setEditArticleId(null)
-    window.history.pushState({}, '', '?admin=articles')
-    window.scrollTo(0, 0)
-  }, [])
+  const openArticleManagement = useCallback(
+    () => navigate({ page: 'admin-articles' }, '?admin=articles'),
+    [navigate],
+  )
 
-  const openCreateArticle = useCallback(() => {
-    setAdminAuthMode(null)
-    setShowArticleManagement(false)
-    setShowCreateArticle(true)
-    setEditArticleId(null)
-    window.history.pushState({}, '', '?admin=create-article')
-    window.scrollTo(0, 0)
-  }, [])
+  const openCreateArticle = useCallback(
+    () => navigate({ page: 'admin-create' }, '?admin=create-article'),
+    [navigate],
+  )
 
-  const openEditArticle = useCallback((id: number) => {
-    setAdminAuthMode(null)
-    setShowArticleManagement(false)
-    setShowCreateArticle(false)
-    setEditArticleId(id)
-    window.history.pushState({}, '', `?admin=edit-article&id=${id}`)
-    window.scrollTo(0, 0)
-  }, [])
+  const openEditArticle = useCallback(
+    (id: number) => navigate({ page: 'admin-edit', id }, `?admin=edit-article&id=${id}`),
+    [navigate],
+  )
 
   const saveCreatedArticle = useCallback(async (input: ArticleWriteInput) => {
     const article = await createArticle(input)
@@ -234,40 +176,19 @@ function App() {
     }
   }, [])
 
-  const closeArticleManagement = useCallback(() => {
-    setShowArticleManagement(false)
-    setShowCreateArticle(false)
-    setEditArticleId(null)
-    window.history.pushState({}, '', window.location.pathname)
-    window.scrollTo(0, 0)
-  }, [])
-
   useEffect(() => {
-    const handlePopState = () => {
-      const params = new URLSearchParams(window.location.search)
-      const id = params.get('article')
-      const mode = params.get('auth')
-      const member = params.get('member')
-      const adminMode = params.get('admin')
-      setAdminAuthMode(adminMode === 'login' || adminMode === 'signup' ? adminMode : null)
-      setShowArticleManagement(params.get('admin') === 'articles')
-      setShowCreateArticle(params.get('admin') === 'create-article')
-      setEditArticleId(params.get('admin') === 'edit-article' ? Number(params.get('id')) || null : null)
-      setMemberView(member === 'profile' || member === 'reset-password' ? member : null)
-      setSelectedArticleId(id ? Number(id) : null)
-      setAuthMode(mode === 'signup' || mode === 'login' ? mode : null)
-    }
+    const handlePopState = () => setView(viewFromLocation())
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  if (memberView && currentMember) {
+  if (view.page === 'member' && currentMember) {
     return (
       <MemberPage
         member={currentMember}
-        view={memberView}
-        onBack={closeMemberView}
+        view={view.view}
+        onBack={goHome}
         onNavigate={openMemberView}
         onSave={saveMember}
         onLogout={logoutMember}
@@ -275,59 +196,57 @@ function App() {
     )
   }
 
-  if (adminAuthMode) {
+  if (view.page === 'auth') {
+    const isAdmin = view.audience === 'admin'
     return (
       <AuthPage
-        key={`admin-${adminAuthMode}`}
-        mode={adminAuthMode}
-        audience="admin"
-        onBack={closeArticleManagement}
-        onModeChange={openAdminAuth}
-        onAuthenticated={openArticleManagement}
+        key={`${view.audience}-${view.mode}`}
+        mode={view.mode}
+        audience={view.audience}
+        onBack={goHome}
+        onModeChange={isAdmin ? openAdminAuth : openAuth}
+        onAuthenticated={isAdmin ? openArticleManagement : authenticateMember}
       />
     )
   }
 
-  if (showArticleManagement) {
+  if (view.page === 'admin-articles') {
     return (
       <ArticleManagementPage
-        onWebsite={closeArticleManagement}
+        onWebsite={goHome}
         onCreate={openCreateArticle}
         onEdit={openEditArticle}
         onDelete={deleteArticle}
         articles={articleList}
         loading={articlesLoading}
         error={articlesError}
-        onLogout={() => {
-          setShowArticleManagement(false)
-          openAdminAuth('login')
-        }}
+        onLogout={() => openAdminAuth('login')}
       />
     )
   }
 
-  if (showCreateArticle) {
+  if (view.page === 'admin-create') {
     return (
-      <CreateArticlePage
+      <ArticleEditorPage
+        mode="create"
         onArticles={openArticleManagement}
-        onWebsite={closeArticleManagement}
-        onLogout={() => {
-          setShowCreateArticle(false)
-          openAdminAuth('login')
-        }}
+        onWebsite={goHome}
+        onLogout={() => openAdminAuth('login')}
         onSave={saveCreatedArticle}
       />
     )
   }
 
-  if (editArticleId !== null) {
-    const article = articleList.find((item) => item.id === editArticleId)
+  if (view.page === 'admin-edit') {
+    const article = articleList.find((item) => item.id === view.id)
     if (article) {
       return (
-        <EditArticlePage
+        <ArticleEditorPage
+          key={article.id}
+          mode="edit"
           article={article}
           onArticles={openArticleManagement}
-          onWebsite={closeArticleManagement}
+          onWebsite={goHome}
           onLogout={() => openAdminAuth('login')}
           onDelete={() => {
             return deleteArticle(article.id).then(openArticleManagement)
@@ -338,24 +257,12 @@ function App() {
     }
   }
 
-  if (authMode) {
-    return (
-      <AuthPage
-        key={authMode}
-        mode={authMode}
-        onBack={closeAuth}
-        onModeChange={openAuth}
-        onAuthenticated={authenticateMember}
-      />
-    )
-  }
-
   if (selectedArticle) {
     return (
       <ArticlePage
         article={selectedArticle}
         member={currentMember}
-        onBack={closeArticle}
+        onBack={goHome}
         onAuthNavigate={openAuth}
         onMemberProfile={() => openMemberView('profile')}
         onMemberResetPassword={() => openMemberView('reset-password')}
@@ -366,8 +273,9 @@ function App() {
 
   return (
     <div className="page">
-      <NavBar
+      <SiteHeader
         member={currentMember}
+        onHome={goHome}
         onLogin={() => openAuth('login')}
         onSignUp={() => openAuth('signup')}
         onProfile={() => openMemberView('profile')}
@@ -381,7 +289,7 @@ function App() {
         <ArticleSection articles={articleList} onSelectArticle={openArticle} />
       </main>
 
-      <Footer onAdminLogin={() => openAdminAuth('login')} />
+      <Footer action="admin" onAction={() => openAdminAuth('login')} />
     </div>
   )
 }

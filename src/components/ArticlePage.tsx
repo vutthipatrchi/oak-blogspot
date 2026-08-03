@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
-import { Bell } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { Article } from '../data/articles'
 import type { MemberProfile } from '../data/member'
 import type { AuthMode } from './AuthPage'
-import { LanguageSwitcher } from './LanguageSwitcher'
-import { ProfileMenu } from './ProfileMenu'
+import { Footer } from './Footer'
+import { SiteHeader } from './SiteHeader'
 
 interface ArticlePageProps {
   article: Article
@@ -135,36 +134,16 @@ export default function ArticlePage({
   return (
     <div className="article-page">
       <div className="page">
-        <header className="header header--dark">
-          <button type="button" className="logo logo--btn" onClick={onBack}>
-            hh.
-          </button>
-          {member ? (
-            <div className="member-nav">
-              <LanguageSwitcher variant="dark" />
-              <button type="button" className="member-nav__bell" aria-label={t('common.notifications')}>
-                <Bell size={20} strokeWidth={1.7} aria-hidden="true" />
-              </button>
-              <ProfileMenu
-                member={member}
-                buttonClassName="member-nav__profile"
-                onProfile={onMemberProfile}
-                onResetPassword={onMemberResetPassword}
-                onLogout={onLogout}
-              />
-            </div>
-          ) : (
-            <div className="header__actions">
-              <LanguageSwitcher variant="dark" />
-              <button type="button" className="btn btn--outline btn--dark" onClick={() => onAuthNavigate('login')}>
-                {t('common.login')}
-              </button>
-              <button type="button" className="btn btn--solid btn--dark-solid" onClick={() => onAuthNavigate('signup')}>
-                {t('common.signup')}
-              </button>
-            </div>
-          )}
-        </header>
+        <SiteHeader
+          variant="dark"
+          member={member}
+          onHome={onBack}
+          onLogin={() => onAuthNavigate('login')}
+          onSignUp={() => onAuthNavigate('signup')}
+          onProfile={onMemberProfile}
+          onResetPassword={onMemberResetPassword}
+          onLogout={onLogout}
+        />
 
         <article className="article-detail">
           <img
@@ -309,30 +288,7 @@ export default function ArticlePage({
           </div>
         </article>
 
-        <footer className="footer footer--dark">
-          <div className="footer__left">
-            <span className="footer__label">{t('footer.getInTouch')}</span>
-            <div className="footer__social">
-              <a href="#" aria-label="LinkedIn" className="social-link social-link--dark">
-                <LinkedInIcon />
-              </a>
-              <a href="#" aria-label="GitHub" className="social-link social-link--dark">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-                </svg>
-              </a>
-              <a href="#" aria-label="Website" className="social-link social-link--dark">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
-                </svg>
-              </a>
-            </div>
-          </div>
-          <button type="button" className="footer__home footer__home--btn" onClick={onBack}>
-            {t('footer.homePage')}
-          </button>
-        </footer>
+        <Footer action="home" variant="dark" onAction={onBack} />
       </div>
 
       {showCommentAuth && (

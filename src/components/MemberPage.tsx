@@ -1,9 +1,8 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Bell, RotateCcw, User } from 'lucide-react'
+import { RotateCcw, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { MemberProfile } from '../data/member'
-import { LanguageSwitcher } from './LanguageSwitcher'
-import { ProfileMenu } from './ProfileMenu'
+import { SiteHeader } from './SiteHeader'
 
 export type MemberView = 'profile' | 'reset-password'
 
@@ -66,22 +65,14 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
 
   return (
     <div className="member-page">
-      <header className="member-navbar">
-        <button type="button" className="logo member-navbar__logo" onClick={onBack}>hh.</button>
-        <div className="member-navbar__account">
-          <LanguageSwitcher />
-          <button type="button" className="member-navbar__bell" aria-label={t('common.notifications')}>
-            <Bell size={20} strokeWidth={1.7} aria-hidden="true" />
-          </button>
-          <ProfileMenu
-            member={member}
-            buttonClassName="member-navbar__user"
-            onProfile={() => onNavigate('profile')}
-            onResetPassword={() => onNavigate('reset-password')}
-            onLogout={onLogout}
-          />
-        </div>
-      </header>
+      <SiteHeader
+        className="page member-navbar"
+        member={member}
+        onHome={onBack}
+        onProfile={() => onNavigate('profile')}
+        onResetPassword={() => onNavigate('reset-password')}
+        onLogout={onLogout}
+      />
 
       <div className="member-layout">
         <aside className="member-sidebar" aria-label={t('member.settings')}>
