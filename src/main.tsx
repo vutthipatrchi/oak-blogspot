@@ -1,9 +1,10 @@
-import { StrictMode } from 'react'
+import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import './i18n'
-import App from './App.tsx'
-import HealthTestPage from './pages/HealthTestPage.tsx'
+
+export const App = lazy(() => import('./App.tsx'))
+export const HealthTestPage = lazy(() => import('./pages/HealthTestPage.tsx'))
 
 const page = window.location.pathname === '/health-test'
   ? <HealthTestPage />
@@ -11,6 +12,8 @@ const page = window.location.pathname === '/health-test'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {page}
+    <Suspense fallback={<main className="page">Loading…</main>}>
+      {page}
+    </Suspense>
   </StrictMode>,
 )
