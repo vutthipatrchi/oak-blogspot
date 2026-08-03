@@ -69,6 +69,7 @@ function App() {
   const selectedArticle = view.page === 'article'
     ? articleList.find((article) => article.id === view.id)
     : undefined
+  const publishedArticles = articleList.filter((article) => article.status === 'published')
 
   useEffect(() => {
     if (!import.meta.env.VITE_API_BASE_URL) return
@@ -284,9 +285,9 @@ function App() {
       />
 
       <main>
-        <HeroSection articles={articleList} onSelectArticle={openArticle} />
+        <HeroSection articles={publishedArticles} onSelectArticle={openArticle} />
 
-        <ArticleSection articles={articleList} onSelectArticle={openArticle} />
+        <ArticleSection articles={publishedArticles} onSelectArticle={openArticle} />
       </main>
 
       <Footer action="admin" onAction={() => openAdminAuth('login')} />
