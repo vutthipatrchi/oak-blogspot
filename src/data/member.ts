@@ -4,6 +4,7 @@ export interface MemberProfile {
   username: string
   email: string
   avatar: string
+  avatarPath?: string
 }
 
 export const defaultMember: MemberProfile = {

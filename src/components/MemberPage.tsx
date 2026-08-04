@@ -2,7 +2,9 @@ import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { RotateCcw, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { MemberProfile } from '../data/member'
+import { uploadMemberProfileImage } from '../lib/auth'
 import { SiteHeader } from './SiteHeader'
+import { useToast } from './ui/use-toast'
 
 export type MemberView = 'profile' | 'reset-password'
 
@@ -26,31 +28,61 @@ function PasswordIcon() {
 
 export default function MemberPage({ member, view, onBack, onNavigate, onSave, onPasswordChange, onLogout }: MemberPageProps) {
   const { t } = useTranslation()
+  const toast = useToast()
   const [draft, setDraft] = useState(member)
-  const [message, setMessage] = useState('')
+  const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setDraft((current) => ({ ...current, avatar: reader.result as string }))
-      }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Please select a JPEG, PNG, or WebP image.')
+      event.target.value = ''
+      return
     }
-    reader.readAsDataURL(file)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('The image must not exceed 5 MB.')
+      event.target.value = ''
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(file)
+    const previousAvatar = draft.avatar
+    const previousAvatarPath = draft.avatarPath
+    setDraft((current) => ({ ...current, avatar: objectUrl }))
+    setUploading(true)
+    try {
+      const uploaded = await uploadMemberProfileImage(file)
+      setDraft((current) => ({
+        ...current,
+        avatar: uploaded.url,
+        avatarPath: uploaded.path,
+      }))
+      toast.success('Profile image uploaded successfully.')
+    } catch (error) {
+      setDraft((current) => ({
+        ...current,
+        avatar: previousAvatar,
+        avatarPath: previousAvatarPath,
+      }))
+      toast.error(error instanceof Error ? error.message : 'Unable to upload profile image.')
+    } finally {
+      URL.revokeObjectURL(objectUrl)
+      setUploading(false)
+      event.target.value = ''
+    }
   }
 
   const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setMessage('')
+    if (uploading) return
     try {
       await onSave(draft)
-      setMessage(t('member.profileSaved'))
+      toast.success(t('member.profileSaved'))
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to save profile.')
+      toast.error(error instanceof Error ? error.message : 'Unable to save profile.')
     }
   }
 
@@ -61,16 +93,16 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
     const confirmation = String(formData.get('confirmPassword') ?? '')
 
     if (password !== confirmation) {
-      setMessage(t('member.passwordsDoNotMatch'))
+      toast.error(t('member.passwordsDoNotMatch'))
       return
     }
 
     try {
       await onPasswordChange(String(formData.get('currentPassword') ?? ''), password)
       event.currentTarget.reset()
-      setMessage(t('member.passwordUpdated'))
+      toast.success(t('member.passwordUpdated'))
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to update password.')
+      toast.error(error instanceof Error ? error.message : 'Unable to update password.')
     }
   }
 
@@ -90,14 +122,14 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
           <button
             type="button"
             className={view === 'profile' ? 'member-menu member-menu--active' : 'member-menu'}
-            onClick={() => { setMessage(''); onNavigate('profile') }}
+            onClick={() => onNavigate('profile')}
           >
             <ProfileIcon /> {t('common.profile')}
           </button>
           <button
             type="button"
             className={view === 'reset-password' ? 'member-menu member-menu--active' : 'member-menu'}
-            onClick={() => { setMessage(''); onNavigate('reset-password') }}
+            onClick={() => onNavigate('reset-password')}
           >
             <PasswordIcon /> {t('common.resetPassword')}
           </button>
@@ -112,11 +144,11 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
                   ref={fileInputRef}
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
-                  onChange={handleImageUpload}
+                  onChange={(event) => { void handleImageUpload(event) }}
                   className="visually-hidden"
                 />
-                <button type="button" onClick={() => fileInputRef.current?.click()}>
-                  {t('member.uploadProfilePicture')}
+                <button type="button" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+                  {uploading ? 'Uploading...' : t('member.uploadProfilePicture')}
                 </button>
               </div>
 
@@ -143,7 +175,7 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
                 <input value={draft.email} disabled />
               </label>
 
-              <button type="submit" className="member-card__save">{t('member.save')}</button>
+              <button type="submit" className="member-card__save" disabled={uploading}>{t('member.save')}</button>
             </form>
           ) : (
             <form className="member-card member-card--password" onSubmit={handlePasswordSave}>
@@ -162,12 +194,6 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
               </label>
               <button type="submit" className="member-card__save">{t('member.save')}</button>
             </form>
-          )}
-
-          {message && (
-            <p className={`member-message${message === t('member.passwordsDoNotMatch') ? ' member-message--error' : ''}`} role="status">
-              {message}
-            </p>
           )}
         </main>
       </div>

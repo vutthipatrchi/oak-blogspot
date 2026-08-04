@@ -176,7 +176,7 @@ export default function ArticlePage({
           <div className="article-detail__layout">
             <div className="article-detail__main">
               <div className="article-detail__meta">
-                <span className="article-detail__tag">{t(`articles.categories.${article.category}`)}</span>
+                <span className="article-detail__tag">{t(`articles.categories.${article.category}`, { defaultValue: article.category })}</span>
                 {article.tags.map((tag) => (
                   <span key={tag} className="article-detail__topic">{tag}</span>
                 ))}

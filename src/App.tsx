@@ -1,26 +1,34 @@
-import { useCallback, useEffect, useState } from 'react'
-import ArticlePage from './components/ArticlePage'
-import ArticleSection from './components/ArticleSection'
-import ArticleManagementPage from './components/ArticleManagementPage'
-import ArticleEditorPage from './components/ArticleEditorPage'
-import AuthPage, { type AuthMode } from './components/AuthPage'
-import MemberPage, { type MemberView } from './components/MemberPage'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import type { AuthMode } from './components/AuthPage'
+import type { MemberView } from './components/MemberPage'
 import { Footer } from './components/Footer'
 import { HeroSection } from './components/HeroSection'
 import { SiteHeader } from './components/SiteHeader'
 import type { MemberProfile } from './data/member'
-import { articles as staticArticles } from './data/articles'
+import { articles as staticArticles, type ArticleCategory } from './data/articles'
 import {
+  canManageArticles,
   clearAuth,
   getCurrentMember,
   loadAuth,
+  refreshAuth,
+  revokeAuth,
   saveAuth,
   updateMemberPassword,
   updateMemberProfile,
   type StoredAuth,
 } from './lib/auth'
-import { createArticle, deleteArticle as deleteArticleRequest, fetchArticles, updateArticle, type ArticleWriteInput } from './lib/articles'
+import { createArticle, deleteArticle as deleteArticleRequest, fetchArticles, fetchCategories, updateArticle, type ArticleWriteInput } from './lib/articles'
 import './App.css'
+
+const ArticlePage = lazy(() => import('./components/ArticlePage'))
+const ArticleSection = lazy(() => import('./components/ArticleSection'))
+const ArticleManagementPage = lazy(() => import('./components/ArticleManagementPage'))
+const ArticleEditorPage = lazy(() => import('./components/ArticleEditorPage'))
+const AuthPage = lazy(() => import('./components/AuthPage'))
+const MemberPage = lazy(() => import('./components/MemberPage'))
+
+const pageFallback = <main className="page">Loading…</main>
 
 type AppView =
   | { page: 'home' }
@@ -65,7 +73,9 @@ function App() {
     () => Boolean(import.meta.env.VITE_API_BASE_URL),
   )
   const [articlesError, setArticlesError] = useState('')
+  const [categoryList, setCategoryList] = useState<ArticleCategory[]>([])
   const [currentAuth, setCurrentAuth] = useState<StoredAuth | null>(loadAuth)
+  const [authReady, setAuthReady] = useState(false)
   const [view, setView] = useState<AppView>(viewFromLocation)
   const currentMember = currentAuth?.member ?? null
 
@@ -98,26 +108,94 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const accessToken = currentAuth?.session.accessToken
-    if (!accessToken) return
+    if (!import.meta.env.VITE_API_BASE_URL) return
+
     let ignore = false
-    getCurrentMember()
-      .then((member) => {
+    fetchCategories()
+      .then((categories) => {
+        if (!ignore) setCategoryList(categories)
+      })
+      .catch((error: unknown) => {
+        console.warn('Unable to load categories.', error)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let ignore = false
+    refreshAuth()
+      .then((auth) => {
         if (ignore) return
-        setCurrentAuth((current) => {
-          if (!current || current.session.accessToken !== accessToken) return current
-          const refreshed = { ...current, member }
-          saveAuth(refreshed)
-          return refreshed
-        })
+        saveAuth(auth)
+        setCurrentAuth(auth)
       })
       .catch(() => {
         if (ignore) return
         clearAuth()
         setCurrentAuth(null)
       })
+      .finally(() => {
+        if (!ignore) setAuthReady(true)
+      })
     return () => { ignore = true }
-  }, [currentAuth?.session.accessToken])
+  }, [])
+
+  useEffect(() => {
+    const accessToken = currentAuth?.session.accessToken
+    if (!accessToken) return
+    let ignore = false
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined
+
+    const expireSession = () => {
+      if (ignore) return
+      clearAuth()
+      setCurrentAuth(null)
+    }
+
+    const refreshSession = async () => {
+      try {
+        const refreshed = await refreshAuth()
+        if (ignore) return
+        saveAuth(refreshed)
+        setCurrentAuth(refreshed)
+      } catch {
+        expireSession()
+      }
+    }
+
+    const expiresAt = currentAuth.session.expiresAt
+    const refreshDelay = expiresAt ? expiresAt * 1000 - Date.now() - 60_000 : null
+    if (refreshDelay !== null && refreshDelay <= 0) {
+      void refreshSession()
+    } else {
+      getCurrentMember()
+        .then((member) => {
+          if (ignore) return
+          setCurrentAuth((current) => {
+            if (!current || current.session.accessToken !== accessToken) return current
+            const verified = { ...current, member }
+            saveAuth(verified)
+            return verified
+          })
+        })
+        .catch(expireSession)
+
+      if (refreshDelay !== null) {
+        refreshTimer = setTimeout(
+          () => { void refreshSession() },
+          Math.min(refreshDelay, 2_147_000_000),
+        )
+      }
+    }
+
+    return () => {
+      ignore = true
+      if (refreshTimer) clearTimeout(refreshTimer)
+    }
+  }, [currentAuth?.session.accessToken, currentAuth?.session.expiresAt])
 
   const navigate = useCallback((nextView: AppView, search = '') => {
     setView(nextView)
@@ -134,11 +212,6 @@ function App() {
 
   const openAuth = useCallback(
     (mode: AuthMode) => navigate({ page: 'auth', mode, audience: 'member' }, `?auth=${mode}`),
-    [navigate],
-  )
-
-  const openAdminAuth = useCallback(
-    (mode: AuthMode) => navigate({ page: 'auth', mode, audience: 'admin' }, `?admin=${mode}`),
     [navigate],
   )
 
@@ -167,21 +240,39 @@ function App() {
   }, [navigate])
 
   const logoutMember = useCallback(() => {
+    const accessToken = currentAuth?.session.accessToken
+    if (accessToken) void revokeAuth(accessToken).catch(() => undefined)
     setCurrentAuth(null)
     clearAuth()
     goHome()
-  }, [goHome])
+  }, [currentAuth?.session.accessToken, goHome])
 
   const openArticleManagement = useCallback(
     () => navigate({ page: 'admin-articles' }, '?admin=articles'),
     [navigate],
   )
 
+  const openAdminAuth = useCallback((mode: AuthMode) => {
+    if (mode === 'login' && canManageArticles(currentAuth?.session.role)) {
+      openArticleManagement()
+      return
+    }
+    navigate({ page: 'auth', mode, audience: 'admin' }, `?admin=${mode}`)
+  }, [currentAuth?.session.role, navigate, openArticleManagement])
+
   const authenticateAdmin = useCallback((auth: StoredAuth) => {
     setCurrentAuth(auth)
     saveAuth(auth)
     openArticleManagement()
   }, [openArticleManagement])
+
+  const logoutAdmin = useCallback(() => {
+    const accessToken = currentAuth?.session.accessToken
+    if (accessToken) void revokeAuth(accessToken).catch(() => undefined)
+    setCurrentAuth(null)
+    clearAuth()
+    navigate({ page: 'auth', mode: 'login', audience: 'admin' }, '?admin=login')
+  }, [currentAuth?.session.accessToken, navigate])
 
   const openCreateArticle = useCallback(
     () => navigate({ page: 'admin-create' }, '?admin=create-article'),
@@ -221,84 +312,130 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
+  const showAdminArticles = view.page === 'admin-articles'
+    || (
+      view.page === 'auth'
+      && view.audience === 'admin'
+      && view.mode === 'login'
+      && canManageArticles(currentAuth?.session.role)
+    )
+
+  if (!authReady) return pageFallback
+
   if (view.page === 'member' && currentMember) {
     return (
-      <MemberPage
-        member={currentMember}
-        view={view.view}
-        onBack={goHome}
-        onNavigate={openMemberView}
-        onSave={saveMember}
-        onPasswordChange={updateMemberPassword}
-        onLogout={logoutMember}
-      />
+      <Suspense fallback={pageFallback}>
+        <MemberPage
+          member={currentMember}
+          view={view.view}
+          onBack={goHome}
+          onNavigate={openMemberView}
+          onSave={saveMember}
+          onPasswordChange={updateMemberPassword}
+          onLogout={logoutMember}
+        />
+      </Suspense>
     )
   }
 
-  if (view.page === 'auth') {
+  if (view.page === 'auth' && !showAdminArticles) {
     const isAdmin = view.audience === 'admin'
     return (
-      <AuthPage
-        key={`${view.audience}-${view.mode}`}
-        mode={view.mode}
-        audience={view.audience}
-        onBack={goHome}
-        onModeChange={isAdmin ? openAdminAuth : openAuth}
-        onAuthenticated={isAdmin ? authenticateAdmin : authenticateMember}
-      />
+      <Suspense fallback={pageFallback}>
+        <AuthPage
+          key={`${view.audience}-${view.mode}`}
+          mode={view.mode}
+          audience={view.audience}
+          onBack={goHome}
+          onModeChange={isAdmin ? openAdminAuth : openAuth}
+          onAuthenticated={isAdmin ? authenticateAdmin : authenticateMember}
+        />
+      </Suspense>
     )
   }
 
-  if (view.page === 'admin-articles') {
+  if (showAdminArticles) {
+    if (!currentMember || !canManageArticles(currentAuth?.session.role)) {
+      return <Suspense fallback={pageFallback}><AuthPage
+        mode="login"
+        audience="admin"
+        onBack={goHome}
+        onModeChange={openAdminAuth}
+        onAuthenticated={authenticateAdmin}
+      /></Suspense>
+    }
     return (
-      <ArticleManagementPage
+      <Suspense fallback={pageFallback}><ArticleManagementPage
         onWebsite={goHome}
         onCreate={openCreateArticle}
         onEdit={openEditArticle}
         onDelete={deleteArticle}
         articles={articleList}
+        categories={categoryList}
         loading={articlesLoading}
         error={articlesError}
-        onLogout={() => openAdminAuth('login')}
-      />
+        onLogout={logoutAdmin}
+      /></Suspense>
     )
   }
 
   if (view.page === 'admin-create') {
+    if (!currentMember || !canManageArticles(currentAuth?.session.role)) {
+      return <Suspense fallback={pageFallback}><AuthPage
+        mode="login"
+        audience="admin"
+        onBack={goHome}
+        onModeChange={openAdminAuth}
+        onAuthenticated={authenticateAdmin}
+      /></Suspense>
+    }
     return (
-      <ArticleEditorPage
+      <Suspense fallback={pageFallback}><ArticleEditorPage
         mode="create"
+        author={currentMember}
+        categories={categoryList}
         onArticles={openArticleManagement}
         onWebsite={goHome}
-        onLogout={() => openAdminAuth('login')}
+        onLogout={logoutAdmin}
         onSave={saveCreatedArticle}
-      />
+      /></Suspense>
     )
   }
 
   if (view.page === 'admin-edit') {
+    if (!currentMember || !canManageArticles(currentAuth?.session.role)) {
+      return <Suspense fallback={pageFallback}><AuthPage
+        mode="login"
+        audience="admin"
+        onBack={goHome}
+        onModeChange={openAdminAuth}
+        onAuthenticated={authenticateAdmin}
+      /></Suspense>
+    }
     const article = articleList.find((item) => item.id === view.id)
     if (article) {
       return (
-        <ArticleEditorPage
+        <Suspense fallback={pageFallback}><ArticleEditorPage
           key={article.id}
           mode="edit"
           article={article}
+          author={currentMember}
+          categories={categoryList}
           onArticles={openArticleManagement}
           onWebsite={goHome}
-          onLogout={() => openAdminAuth('login')}
+          onLogout={logoutAdmin}
           onDelete={() => {
             return deleteArticle(article.id).then(openArticleManagement)
           }}
           onSave={(input) => saveEditedArticle(article.id, input)}
-        />
+        /></Suspense>
       )
     }
   }
 
   if (selectedArticle) {
     return (
-      <ArticlePage
+      <Suspense fallback={pageFallback}><ArticlePage
         article={selectedArticle}
         member={currentMember}
         onBack={goHome}
@@ -306,7 +443,7 @@ function App() {
         onMemberProfile={() => openMemberView('profile')}
         onMemberResetPassword={() => openMemberView('reset-password')}
         onLogout={logoutMember}
-      />
+      /></Suspense>
     )
   }
 
@@ -325,7 +462,9 @@ function App() {
       <main>
         <HeroSection articles={publishedArticles} onSelectArticle={openArticle} />
 
-        <ArticleSection articles={publishedArticles} onSelectArticle={openArticle} />
+        <Suspense fallback={pageFallback}>
+          <ArticleSection articles={publishedArticles} categories={categoryList} onSelectArticle={openArticle} />
+        </Suspense>
       </main>
 
       <Footer action="admin" onAction={() => openAdminAuth('login')} />

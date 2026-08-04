@@ -1051,6 +1051,10 @@
   color: #00b978;
 }
 
+.article-admin__status--draft {
+  color: #d49a00;
+}
+
 .article-admin__status::before {
   content: '•';
   margin-right: 7px;
