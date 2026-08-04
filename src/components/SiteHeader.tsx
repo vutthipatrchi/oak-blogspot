@@ -40,7 +40,7 @@ export function SiteHeader({
   return (
     <header className={headerClassName}>
       <button type="button" className="site-header__logo" onClick={onHome}>
-        hh<span>.</span>
+        oak<span>.</span>
       </button>
 
       {member && onProfile && onResetPassword && onLogout ? (

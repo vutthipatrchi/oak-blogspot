@@ -34,7 +34,7 @@ export default function AuthPage({ mode, audience = 'member', onBack, onModeChan
           email: String(formData.get('email') ?? '').trim(),
           password: String(formData.get('password') ?? ''),
         })
-        setRegisteredAuth(auth)
+        setRegisteredAuth(auth.session ? auth as StoredAuth : null)
         setRegistrationSuccess(true)
       } else {
         const auth = await signInMember(
@@ -72,10 +72,11 @@ export default function AuthPage({ mode, audience = 'member', onBack, onModeChan
               </svg>
             </div>
             <h1 className="auth-success__title">{t('auth.registrationSuccess')}</h1>
+            {!registeredAuth && <p>{t('auth.verificationSent')}</p>}
             <button
               type="button"
               className="auth-form__submit auth-success__continue"
-              onClick={() => registeredAuth && onAuthenticated(registeredAuth)}
+              onClick={() => registeredAuth ? onAuthenticated(registeredAuth) : onModeChange('login')}
             >
               {t('auth.continue')}
             </button>

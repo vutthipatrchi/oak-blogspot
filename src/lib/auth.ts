@@ -2,17 +2,29 @@ import axios from 'axios'
 import type { MemberProfile } from '@/data/member'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '')
-const storageKey = 'hh.auth'
+let activeAuth: StoredAuth | null = null
 
 export interface AuthSession {
   accessToken: string
   expiresAt: number | null
-  role: 'member' | 'admin'
+  role: UserRole
+}
+
+export type UserRole = 'owner' | 'admin' | 'member'
+
+export function canManageArticles(role: UserRole | undefined): boolean {
+  return role === 'owner' || role === 'admin'
 }
 
 export interface StoredAuth {
   member: MemberProfile
   session: AuthSession
+}
+
+export interface SignUpResult {
+  member: MemberProfile
+  session: AuthSession | null
+  requiresEmailConfirmation?: boolean
 }
 
 function apiUrl(path: string) {
@@ -28,27 +40,15 @@ export function toApiError(error: unknown): Error {
 }
 
 export function loadAuth(): StoredAuth | null {
-  try {
-    const raw = window.localStorage.getItem(storageKey)
-    if (!raw) return null
-    const auth = JSON.parse(raw) as StoredAuth
-    if (!auth.session?.accessToken || !auth.member) return null
-    if (auth.session.expiresAt && auth.session.expiresAt * 1000 <= Date.now()) {
-      window.localStorage.removeItem(storageKey)
-      return null
-    }
-    return auth
-  } catch {
-    return null
-  }
+  return activeAuth
 }
 
 export function saveAuth(auth: StoredAuth) {
-  window.localStorage.setItem(storageKey, JSON.stringify(auth))
+  activeAuth = auth
 }
 
 export function clearAuth() {
-  window.localStorage.removeItem(storageKey)
+  activeAuth = null
 }
 
 export function authorizationHeaders(): Record<string, string> {
@@ -63,7 +63,8 @@ async function authRequest<T>(path: string, data?: unknown, method: 'GET' | 'POS
       url: apiUrl(path),
       method,
       data,
-      headers: path === '/api/auth/signup' || path === '/api/auth/login'
+      withCredentials: true,
+      headers: path === '/api/auth/signup' || path === '/api/auth/login' || path === '/api/auth/refresh'
         ? undefined
         : authorizationHeaders(),
     })
@@ -74,11 +75,26 @@ async function authRequest<T>(path: string, data?: unknown, method: 'GET' | 'POS
 }
 
 export function signUpMember(input: { name: string; username: string; email: string; password: string }) {
-  return authRequest<StoredAuth>('/api/auth/signup', input)
+  return authRequest<SignUpResult>('/api/auth/signup', input)
 }
 
 export function signInMember(identifier: string, password: string, audience: 'member' | 'admin') {
   return authRequest<StoredAuth>('/api/auth/login', { identifier, password, audience })
+}
+
+export function refreshAuth(): Promise<StoredAuth> {
+  return authRequest<StoredAuth>('/api/auth/refresh')
+}
+
+export async function revokeAuth(accessToken: string): Promise<void> {
+  try {
+    await axios.post(apiUrl('/api/auth/logout'), undefined, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      withCredentials: true,
+    })
+  } catch (error) {
+    throw toApiError(error)
+  }
 }
 
 export async function getCurrentMember(): Promise<MemberProfile> {
@@ -87,8 +103,27 @@ export async function getCurrentMember(): Promise<MemberProfile> {
 }
 
 export async function updateMemberProfile(member: MemberProfile): Promise<MemberProfile> {
-  const response = await authRequest<{ member: MemberProfile }>('/api/auth/profile', member, 'PATCH')
+  const response = await authRequest<{ member: MemberProfile }>('/api/auth/profile', {
+    ...member,
+    avatar: member.avatarPath ?? member.avatar,
+  }, 'PATCH')
   return response.member
+}
+
+export async function uploadMemberProfileImage(file: File): Promise<{ path: string; url: string }> {
+  try {
+    const response = await axios.post<{ path: string; url: string }>(
+      apiUrl('/api/uploads/profiles/members'),
+      file,
+      {
+        headers: { 'Content-Type': file.type, ...authorizationHeaders() },
+        withCredentials: true,
+      },
+    )
+    return response.data
+  } catch (error) {
+    throw toApiError(error)
+  }
 }
 
 export function updateMemberPassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {

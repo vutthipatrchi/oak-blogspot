@@ -1,10 +1,19 @@
 import axios from 'axios'
-import type { Article, ArticleSection, Category, Comment } from '@/data/articles'
+import type { Article, ArticleCategory, ArticleSection, Comment } from '@/data/articles'
 import { authorizationHeaders, toApiError } from './auth'
 
-type ArticleCategory = Exclude<Category, 'Highlight'>
-
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '')
+
+export async function fetchCategories(): Promise<ArticleCategory[]> {
+  if (!apiBaseUrl) throw new Error('Backend API is not configured.')
+
+  try {
+    const response = await axios.get<{ categories?: ArticleCategory[] }>(`${apiBaseUrl}/api/categories`)
+    return response.data.categories ?? []
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
 
 export async function fetchArticles(): Promise<Article[]> {
   if (!apiBaseUrl) {
@@ -20,13 +29,37 @@ export async function fetchArticles(): Promise<Article[]> {
 }
 
 export interface ArticleWriteInput {
-  category: ArticleCategory
+  categoryId: number
   title: string
   excerpt: string
   image: string
-  author: string
   status: 'draft' | 'published'
   sections: ArticleSection[]
+}
+
+export interface UploadedImage {
+  path: string
+  url: string
+}
+
+export async function uploadArticleImage(file: File): Promise<UploadedImage> {
+  if (!apiBaseUrl) throw new Error('VITE_API_BASE_URL is not configured.')
+
+  try {
+    const response = await axios.post<UploadedImage>(
+      `${apiBaseUrl}/api/uploads/articles`,
+      file,
+      {
+        headers: {
+          'Content-Type': file.type,
+          ...authorizationHeaders(),
+        },
+      },
+    )
+    return response.data
+  } catch (error) {
+    throw toApiError(error)
+  }
 }
 
 async function writeArticle(path: string, method: 'POST' | 'PATCH', input: ArticleWriteInput): Promise<Article> {

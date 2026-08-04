@@ -8,7 +8,8 @@ import {
 } from 'lucide-react'
 import DeleteArticleDialog from './DeleteArticleDialog'
 import AdminLayout from './AdminLayout'
-import type { Article } from '@/data/articles'
+import type { Article, ArticleCategory } from '@/data/articles'
+import { useToast } from './ui/use-toast'
 
 interface ArticleManagementPageProps {
   onWebsite: () => void
@@ -17,20 +18,19 @@ interface ArticleManagementPageProps {
   onEdit: (id: number) => void
   onDelete: (id: number) => Promise<void>
   articles: Article[]
+  categories: ArticleCategory[]
   loading: boolean
   error: string
 }
 
 type ArticleStatus = 'Published' | 'Draft'
-type AdminArticleCategory = Article['category']
-
 const statusOptions: Array<ArticleStatus | 'All'> = ['All', 'Published', 'Draft']
-const categoryOptions: Array<AdminArticleCategory | 'All'> = ['All', 'Thinker', 'Writer', 'Literature']
 
-export default function ArticleManagementPage({ onWebsite, onLogout, onCreate, onEdit, onDelete, articles, loading, error }: ArticleManagementPageProps) {
+export default function ArticleManagementPage({ onWebsite, onLogout, onCreate, onEdit, onDelete, articles, categories, loading, error }: ArticleManagementPageProps) {
+  const toast = useToast()
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<ArticleStatus | 'All'>('All')
-  const [categoryFilter, setCategoryFilter] = useState<AdminArticleCategory | 'All'>('All')
+  const [categoryFilter, setCategoryFilter] = useState<string>('All')
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
 
   const filteredArticles = useMemo(() => {
@@ -96,12 +96,11 @@ export default function ArticleManagementPage({ onWebsite, onLogout, onCreate, o
                 <span className="visually-hidden">Category</span>
                 <select
                   value={categoryFilter}
-                  onChange={(event) => setCategoryFilter(event.target.value as AdminArticleCategory | 'All')}
+                  onChange={(event) => setCategoryFilter(event.target.value)}
                 >
-                  {categoryOptions.map((category) => (
-                    <option key={category} value={category}>
-                      {category === 'All' ? 'Category' : category}
-                    </option>
+                  <option value="All">Category</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.name}>{category.name}</option>
                   ))}
                 </select>
                 <ChevronDown size={18} strokeWidth={1.7} aria-hidden="true" />
@@ -129,7 +128,9 @@ export default function ArticleManagementPage({ onWebsite, onLogout, onCreate, o
                     </td>
                     <td>{article.category}</td>
                     <td>
-                      <span className="article-admin__status">{article.status === 'published' ? 'Published' : 'Draft'}</span>
+                      <span className={`article-admin__status${article.status === 'published' ? '' : ' article-admin__status--draft'}`}>
+                        {article.status === 'published' ? 'Published' : 'Draft'}
+                      </span>
                     </td>
                     <td>
                       <div className="article-admin__actions">
@@ -159,7 +160,13 @@ export default function ArticleManagementPage({ onWebsite, onLogout, onCreate, o
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget !== null) {
-            void onDelete(deleteTarget).finally(() => setDeleteTarget(null))
+            const article = articles.find((item) => item.id === deleteTarget)
+            void onDelete(deleteTarget)
+              .then(() => toast.success(article ? `Deleted “${article.title}”.` : 'Article deleted.'))
+              .catch((deleteError) => {
+                toast.error(deleteError instanceof Error ? deleteError.message : 'Unable to delete article.')
+              })
+              .finally(() => setDeleteTarget(null))
           }
         }}
       />

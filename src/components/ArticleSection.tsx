@@ -10,13 +10,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  categories,
   type Article,
-  type Category,
+  type ArticleCategory,
 } from '@/data/articles'
 
 interface ArticleSectionProps {
   articles: Article[]
+  categories: ArticleCategory[]
   onSelectArticle: (id: number) => void
 }
 
@@ -44,7 +44,7 @@ function ArticleCard({
     >
       <img src={article.image} alt="" className="article-card__image" loading="lazy" />
       <div className="article-card__tags">
-        <span className="article-card__tag">{t(`articles.categories.${article.category}`)}</span>
+        <span className="article-card__tag">{t(`articles.categories.${article.category}`, { defaultValue: article.category })}</span>
         {article.tags.slice(0, 2).map((tag) => (
           <span key={tag} className="article-card__topic">{tag}</span>
         ))}
@@ -60,9 +60,15 @@ function ArticleCard({
   )
 }
 
-export default function ArticleSection({ articles, onSelectArticle }: ArticleSectionProps) {
+export default function ArticleSection({ articles, categories, onSelectArticle }: ArticleSectionProps) {
   const { t } = useTranslation()
-  const [activeCategory, setActiveCategory] = useState<Category>('Highlight')
+  const [activeCategory, setActiveCategory] = useState('Highlight')
+  const categoryNames = useMemo(
+    () => ['Highlight', ...(categories.length > 0
+      ? categories.map((category) => category.name)
+      : [...new Set(articles.map((article) => article.category))])],
+    [articles, categories],
+  )
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1)
@@ -77,7 +83,7 @@ export default function ArticleSection({ articles, onSelectArticle }: ArticleSec
         article.title,
         article.excerpt,
         article.category,
-        t(`articles.categories.${article.category}`),
+        t(`articles.categories.${article.category}`, { defaultValue: article.category }),
         ...article.tags,
         article.author,
         ...article.sections.flatMap((section) => [
@@ -99,14 +105,14 @@ export default function ArticleSection({ articles, onSelectArticle }: ArticleSec
 
       <div className="articles-toolbar">
         <div className="articles-toolbar__filters hidden md:flex">
-          {categories.map((category) => (
+          {categoryNames.map((category) => (
             <button
               key={category}
               type="button"
               className={`filter-btn${activeCategory === category ? ' filter-btn--active' : ''}`}
               onClick={() => setActiveCategory(category)}
             >
-              {t(`articles.categories.${category}`)}
+              {t(`articles.categories.${category}`, { defaultValue: category })}
             </button>
           ))}
         </div>
@@ -114,14 +120,14 @@ export default function ArticleSection({ articles, onSelectArticle }: ArticleSec
         <div className="w-full md:hidden">
           <Select
             value={activeCategory}
-            onValueChange={(value) => value && setActiveCategory(value as Category)}
+            onValueChange={(value) => value && setActiveCategory(value)}
           >
             <SelectTrigger className="h-12 w-full rounded-xl bg-white px-4" aria-label={t('articles.categoryLabel')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>{t(`articles.categories.${category}`)}</SelectItem>
+              {categoryNames.map((category) => (
+                <SelectItem key={category} value={category}>{t(`articles.categories.${category}`, { defaultValue: category })}</SelectItem>
               ))}
             </SelectContent>
           </Select>

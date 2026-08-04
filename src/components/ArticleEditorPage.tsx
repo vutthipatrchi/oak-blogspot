@@ -1,13 +1,15 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Image, Trash2 } from 'lucide-react'
-import type { Article } from '@/data/articles'
-import type { ArticleWriteInput } from '@/lib/articles'
+import type { Article, ArticleCategory } from '@/data/articles'
+import type { MemberProfile } from '@/data/member'
+import { uploadArticleImage, type ArticleWriteInput } from '@/lib/articles'
 import AdminLayout from './AdminLayout'
 import DeleteArticleDialog from './DeleteArticleDialog'
-
-const defaultAuthor = 'Thompson P.'
+import { useToast } from './ui/use-toast'
 
 interface SharedProps {
+  author: MemberProfile
+  categories: ArticleCategory[]
   onArticles: () => void
   onWebsite: () => void
   onLogout: () => void
@@ -28,44 +30,71 @@ type ArticleEditorPageProps = SharedProps & (
 )
 
 export default function ArticleEditorPage(props: ArticleEditorPageProps) {
-  const { mode, onArticles, onWebsite, onLogout, onSave } = props
+  const { mode, author, categories, onArticles, onWebsite, onLogout, onSave } = props
   const article = mode === 'edit' ? props.article : null
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [thumbnail, setThumbnail] = useState(article?.image ?? '')
+  const toast = useToast()
+  const [thumbnail, setThumbnail] = useState(article?.imagePath ?? article?.image ?? '')
+  const [thumbnailPreview, setThumbnailPreview] = useState(article?.image ?? '')
   const [showDelete, setShowDelete] = useState(false)
-  const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
-  const handleThumbnail = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleThumbnail = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') setThumbnail(reader.result)
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Please select a JPEG, PNG, or WebP image.')
+      event.target.value = ''
+      return
     }
-    reader.readAsDataURL(file)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('The image must not exceed 5 MB.')
+      event.target.value = ''
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(file)
+    setThumbnailPreview(objectUrl)
+    setUploading(true)
+    try {
+      const uploaded = await uploadArticleImage(file)
+      setThumbnail(uploaded.path)
+      setThumbnailPreview(uploaded.url)
+      toast.success('Thumbnail uploaded successfully.')
+    } catch (uploadError) {
+      setThumbnailPreview(thumbnail)
+      toast.error(uploadError instanceof Error ? uploadError.message : 'Unable to upload image.')
+    } finally {
+      URL.revokeObjectURL(objectUrl)
+      setUploading(false)
+      event.target.value = ''
+    }
   }
 
   const save = async (event: FormEvent<HTMLFormElement>, status: ArticleWriteInput['status']) => {
     event.preventDefault()
+    if (uploading) {
+      toast.info('Please wait for the image upload to finish.')
+      return
+    }
     const form = new FormData(event.currentTarget)
     setSaving(true)
-    setError('')
 
     try {
       await onSave({
-        category: form.get('category') as ArticleWriteInput['category'],
+        categoryId: Number(form.get('categoryId')),
         title: String(form.get('title') ?? ''),
         excerpt: String(form.get('introduction') ?? ''),
         image: thumbnail,
-        author: article?.author || defaultAuthor,
         status,
         sections: [{ title: '', paragraphs: [String(form.get('content') ?? '')] }],
       })
+      toast.success(status === 'draft' ? 'Article saved as draft.' : 'Article saved successfully.')
       onArticles()
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Unable to save article.')
+      toast.error(saveError instanceof Error ? saveError.message : 'Unable to save article.')
     } finally {
       setSaving(false)
     }
@@ -82,7 +111,7 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
           <h1>{mode === 'create' ? 'Create article' : 'Edit article'}</h1>
           <div className="create-article__header-actions">
             <button
-              disabled={saving}
+              disabled={saving || uploading}
               type="submit"
               form="article-editor-form"
               value="draft"
@@ -91,7 +120,7 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
               Save as draft
             </button>
             <button
-              disabled={saving}
+              disabled={saving || uploading}
               type="submit"
               form="article-editor-form"
               value="published"
@@ -114,40 +143,49 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
             <span className="create-article__label">Thumbnail image</span>
             <div className="create-article__thumbnail-row">
               <div className="create-article__thumbnail">
-                {thumbnail
-                  ? <img src={thumbnail} alt="Thumbnail preview" />
+                {thumbnailPreview
+                  ? <img src={thumbnailPreview} alt="Thumbnail preview" />
                   : <Image size={34} strokeWidth={1.3} aria-hidden="true" />}
               </div>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
-                onChange={handleThumbnail}
+                onChange={(event) => { void handleThumbnail(event) }}
                 className="visually-hidden"
               />
               <button
                 type="button"
                 className="create-article__upload"
+                disabled={uploading || saving}
                 onClick={() => fileInputRef.current?.click()}
               >
-                Upload thumbnail image
+                {uploading ? 'Uploading...' : 'Upload thumbnail image'}
               </button>
             </div>
           </section>
 
           <label className="create-article__field create-article__field--short">
             <span>Category</span>
-            <select name="category" defaultValue={article?.category ?? ''} required>
+            <select
+              key={categories.map((category) => category.id).join('-')}
+              name="categoryId"
+              defaultValue={article?.categoryId?.toString()
+                ?? categories.find((category) => category.name === article?.category)?.id.toString()
+                ?? ''}
+              required
+              disabled={categories.length === 0}
+            >
               <option value="" disabled>Select category</option>
-              <option value="Thinker">Thinker</option>
-              <option value="Writer">Writer</option>
-              <option value="Literature">Literature</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
             </select>
           </label>
 
           <label className="create-article__field create-article__field--short create-article__field--disabled">
             <span>Author name</span>
-            <input value={article?.author || defaultAuthor} disabled />
+            <input value={author.name || author.username || author.email} disabled />
           </label>
 
           <label className="create-article__field">
@@ -188,7 +226,6 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
               <span>Delete article</span>
             </button>
           )}
-          {error && <p className="create-article__message" role="alert">{error}</p>}
         </form>
       </main>
 

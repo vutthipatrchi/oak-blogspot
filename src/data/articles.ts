@@ -1,4 +1,10 @@
-export type Category = 'Highlight' | 'Thinker' | 'Writer' | 'Literature'
+export type Category = string
+
+export interface ArticleCategory {
+  id: number
+  name: string
+  description: string
+}
 
 export interface ArticleSection {
   title: string
@@ -17,11 +23,14 @@ export interface Comment {
 
 export interface Article {
   id: number
-  category: Exclude<Category, 'Highlight'>
+  categoryId?: number
+  category: Category
   tags: string[]
   title: string
   excerpt: string
   image: string
+  imagePath?: string
+  authorId?: string | null
   author: string
   authorAvatar: string
   authorBio: string[]

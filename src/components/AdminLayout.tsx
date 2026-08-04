@@ -23,7 +23,7 @@ export default function AdminLayout({
       <aside className="admin-shell__sidebar" aria-label="Admin navigation">
         <div>
           <button type="button" className="admin-shell__brand" onClick={onWebsite}>
-            hh<span>.</span>
+            oak<span>.</span>
           </button>
           <p className="admin-shell__eyebrow">Admin panel</p>
           <nav className="admin-shell__nav">
@@ -40,7 +40,7 @@ export default function AdminLayout({
         <div className="admin-shell__footer">
           <button type="button" className="admin-shell__footer-btn" onClick={onWebsite}>
             <ExternalLink size={19} strokeWidth={1.6} />
-            <span>hh. website</span>
+            <span>oak. website</span>
           </button>
           <button type="button" className="admin-shell__footer-btn" onClick={onLogout}>
             <LogOut size={19} strokeWidth={1.6} />
