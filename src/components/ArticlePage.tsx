@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Article } from '../data/articles'
 import type { MemberProfile } from '../data/member'
+import { createArticleComment, toggleArticleLike } from '../lib/articles'
 import type { AuthMode } from './AuthPage'
+import { Footer } from './Footer'
+import { SiteHeader } from './SiteHeader'
 
 interface ArticlePageProps {
   article: Article
@@ -9,6 +13,8 @@ interface ArticlePageProps {
   onBack: () => void
   onAuthNavigate: (mode: AuthMode) => void
   onMemberProfile: () => void
+  onMemberResetPassword: () => void
+  onLogout: () => void
 }
 
 function SmileIcon() {
@@ -60,11 +66,22 @@ function TwitterIcon() {
   )
 }
 
-export default function ArticlePage({ article, member, onBack, onAuthNavigate, onMemberProfile }: ArticlePageProps) {
+export default function ArticlePage({
+  article,
+  member,
+  onBack,
+  onAuthNavigate,
+  onMemberProfile,
+  onMemberResetPassword,
+  onLogout,
+}: ArticlePageProps) {
+  const { t } = useTranslation()
   const [likes, setLikes] = useState(article.likes)
   const [liked, setLiked] = useState(false)
+  const [comments, setComments] = useState(article.comments)
   const [commentText, setCommentText] = useState('')
-  const [copyLabel, setCopyLabel] = useState('Copy link')
+  const [interactionError, setInteractionError] = useState('')
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [showCommentAuth, setShowCommentAuth] = useState(false)
   const closeModalRef = useRef<HTMLButtonElement>(null)
 
@@ -86,13 +103,18 @@ export default function ArticlePage({ article, member, onBack, onAuthNavigate, o
     }
   }, [showCommentAuth])
 
-  const handleLike = () => {
-    if (liked) {
-      setLikes((prev) => prev - 1)
-      setLiked(false)
-    } else {
-      setLikes((prev) => prev + 1)
-      setLiked(true)
+  const handleLike = async () => {
+    if (!member) {
+      setShowCommentAuth(true)
+      return
+    }
+    setInteractionError('')
+    try {
+      const result = await toggleArticleLike(article.id)
+      setLikes(result.likes)
+      setLiked(result.liked)
+    } catch (error) {
+      setInteractionError(error instanceof Error ? error.message : 'Unable to update like.')
     }
   }
 
@@ -100,17 +122,30 @@ export default function ArticlePage({ article, member, onBack, onAuthNavigate, o
     const url = `${window.location.origin}${window.location.pathname}?article=${article.id}`
     try {
       await navigator.clipboard.writeText(url)
-      setCopyLabel('Copied!')
-      setTimeout(() => setCopyLabel('Copy link'), 2000)
+      setCopyStatus('copied')
+      setTimeout(() => setCopyStatus('idle'), 2000)
     } catch {
-      setCopyLabel('Failed')
-      setTimeout(() => setCopyLabel('Copy link'), 2000)
+      setCopyStatus('failed')
+      setTimeout(() => setCopyStatus('idle'), 2000)
     }
   }
 
-  const handleSendComment = (e: FormEvent) => {
+  const handleSendComment = async (e: FormEvent) => {
     e.preventDefault()
-    setShowCommentAuth(true)
+    if (!member) {
+      setShowCommentAuth(true)
+      return
+    }
+    const text = commentText.trim()
+    if (!text) return
+    setInteractionError('')
+    try {
+      const comment = await createArticleComment(article.id, text)
+      setComments((current) => [...current, comment])
+      setCommentText('')
+    } catch (error) {
+      setInteractionError(error instanceof Error ? error.message : 'Unable to post comment.')
+    }
   }
 
   const handleModalBackdrop = (event: MouseEvent<HTMLDivElement>) => {
@@ -120,30 +155,16 @@ export default function ArticlePage({ article, member, onBack, onAuthNavigate, o
   return (
     <div className="article-page">
       <div className="page">
-        <header className="header header--dark">
-          <button type="button" className="logo logo--btn" onClick={onBack}>
-            hh.
-          </button>
-          {member ? (
-            <div className="member-nav">
-              <button type="button" className="member-nav__bell" aria-label="Notifications">♧</button>
-              <button type="button" className="member-nav__profile" onClick={onMemberProfile}>
-                <img src={member.avatar} alt="" />
-                <span>{member.name}</span>
-                <span aria-hidden="true">⌄</span>
-              </button>
-            </div>
-          ) : (
-            <div className="header__actions">
-              <button type="button" className="btn btn--outline btn--dark" onClick={() => onAuthNavigate('login')}>
-                Log in
-              </button>
-              <button type="button" className="btn btn--solid btn--dark-solid" onClick={() => onAuthNavigate('signup')}>
-                Sign up
-              </button>
-            </div>
-          )}
-        </header>
+        <SiteHeader
+          variant="dark"
+          member={member}
+          onHome={onBack}
+          onLogin={() => onAuthNavigate('login')}
+          onSignUp={() => onAuthNavigate('signup')}
+          onProfile={onMemberProfile}
+          onResetPassword={onMemberResetPassword}
+          onLogout={onLogout}
+        />
 
         <article className="article-detail">
           <img
@@ -155,7 +176,7 @@ export default function ArticlePage({ article, member, onBack, onAuthNavigate, o
           <div className="article-detail__layout">
             <div className="article-detail__main">
               <div className="article-detail__meta">
-                <span className="article-detail__tag">{article.category}</span>
+                <span className="article-detail__tag">{t(`articles.categories.${article.category}`, { defaultValue: article.category })}</span>
                 {article.tags.map((tag) => (
                   <span key={tag} className="article-detail__topic">{tag}</span>
                 ))}
@@ -190,7 +211,7 @@ export default function ArticlePage({ article, member, onBack, onAuthNavigate, o
 
               {article.source && (
                 <p className="article-detail__source">
-                  แหล่งข้อมูล:{' '}
+                  {t('article.sourceLabel')}:{' '}
                   <a href={article.source.url} target="_blank" rel="noreferrer">
                     {article.source.label}
                   </a>
@@ -201,7 +222,7 @@ export default function ArticlePage({ article, member, onBack, onAuthNavigate, o
                 <button
                   type="button"
                   className={`action-btn action-btn--like${liked ? ' action-btn--liked' : ''}`}
-                  onClick={handleLike}
+                  onClick={() => void handleLike()}
                 >
                   <SmileIcon />
                   <span>{likes.toLocaleString()}</span>
@@ -212,42 +233,46 @@ export default function ArticlePage({ article, member, onBack, onAuthNavigate, o
                   onClick={handleCopyLink}
                 >
                   <LinkIcon />
-                  <span>{copyLabel}</span>
+                  <span>{t(`article.${copyStatus === 'idle' ? 'copyLink' : copyStatus}`)}</span>
                 </button>
                 <div className="article-detail__social">
-                  <a href="#" aria-label="Share on Facebook" className="social-share social-share--facebook">
+                  <a href="#" aria-label={t('article.shareFacebook')} className="social-share social-share--facebook">
                     <FacebookIcon />
                   </a>
-                  <a href="#" aria-label="Share on LinkedIn" className="social-share social-share--linkedin">
+                  <a href="#" aria-label={t('article.shareLinkedIn')} className="social-share social-share--linkedin">
                     <LinkedInIcon />
                   </a>
-                  <a href="#" aria-label="Share on X" className="social-share social-share--twitter">
+                  <a href="#" aria-label={t('article.shareX')} className="social-share social-share--twitter">
                     <TwitterIcon />
                   </a>
                 </div>
               </div>
 
               <section className="comments">
-                <h2 className="comments__title">Comment</h2>
+                <h2 className="comments__title">{t('article.commentTitle')}</h2>
                 <form className="comment-form" onSubmit={handleSendComment}>
                   <textarea
                     className="comment-form__input"
-                    placeholder="What are your thoughts?"
+                    placeholder={t('article.commentPlaceholder')}
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
-                    onClick={() => setShowCommentAuth(true)}
-                    onFocus={() => setShowCommentAuth(true)}
+                    onClick={() => { if (!member) setShowCommentAuth(true) }}
+                    onFocus={() => { if (!member) setShowCommentAuth(true) }}
                     rows={4}
                   />
                   <div className="comment-form__footer">
                     <button type="submit" className="comment-form__send">
-                      Send
+                      {t('article.send')}
                     </button>
                   </div>
                 </form>
 
+                {interactionError && (
+                  <p className="member-message member-message--error" role="alert">{interactionError}</p>
+                )}
+
                 <ul className="comments__list">
-                  {article.comments.map((comment) => (
+                  {comments.map((comment) => (
                     <li key={comment.id} className="comment-item">
                       <img
                         src={comment.avatar}
@@ -269,7 +294,7 @@ export default function ArticlePage({ article, member, onBack, onAuthNavigate, o
 
             <aside className="article-detail__sidebar">
               <div className="author-card">
-                <span className="author-card__label">Author</span>
+                <span className="author-card__label">{t('article.author')}</span>
                 <div className="author-card__profile">
                   <img
                     src={article.authorAvatar}
@@ -288,30 +313,7 @@ export default function ArticlePage({ article, member, onBack, onAuthNavigate, o
           </div>
         </article>
 
-        <footer className="footer footer--dark">
-          <div className="footer__left">
-            <span className="footer__label">Get in touch</span>
-            <div className="footer__social">
-              <a href="#" aria-label="LinkedIn" className="social-link social-link--dark">
-                <LinkedInIcon />
-              </a>
-              <a href="#" aria-label="GitHub" className="social-link social-link--dark">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-                </svg>
-              </a>
-              <a href="#" aria-label="Website" className="social-link social-link--dark">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
-                </svg>
-              </a>
-            </div>
-          </div>
-          <button type="button" className="footer__home footer__home--btn" onClick={onBack}>
-            Home page
-          </button>
-        </footer>
+        <Footer action="home" variant="dark" onAction={onBack} />
       </div>
 
       {showCommentAuth && (
@@ -326,21 +328,21 @@ export default function ArticlePage({ article, member, onBack, onAuthNavigate, o
               ref={closeModalRef}
               type="button"
               className="comment-auth-modal__close"
-              aria-label="Close"
+              aria-label={t('article.close')}
               onClick={() => setShowCommentAuth(false)}
             >
               <span aria-hidden="true">×</span>
             </button>
             <h2 id="comment-auth-title" className="comment-auth-modal__title">
-              Create an account to continue
+              {t('article.commentAuthTitle')}
             </h2>
             <button type="button" className="comment-auth-modal__primary" onClick={() => onAuthNavigate('signup')}>
-              Create account
+              {t('article.createAccount')}
             </button>
             <p className="comment-auth-modal__login">
-              Already have an account?{' '}
+              {t('article.alreadyHaveAccount')}{' '}
               <button type="button" className="comment-auth-modal__login-btn" onClick={() => onAuthNavigate('login')}>
-                Log in
+                {t('common.login')}
               </button>
             </p>
           </div>
