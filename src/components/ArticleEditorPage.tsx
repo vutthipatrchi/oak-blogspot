@@ -1,11 +1,30 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Image, Trash2 } from 'lucide-react'
+import { Image, Plus, Trash2, X } from 'lucide-react'
 import type { Article, ArticleCategory } from '@/data/articles'
 import type { MemberProfile } from '@/data/member'
+import { splitArticleParagraphs } from '@/lib/articleContent'
 import { uploadArticleImage, type ArticleWriteInput } from '@/lib/articles'
 import AdminLayout from './AdminLayout'
 import DeleteArticleDialog from './DeleteArticleDialog'
 import { useToast } from './ui/use-toast'
+
+const MAX_TAGS = 10
+const MAX_TAG_LENGTH = 40
+
+function mergeTags(currentTags: string[], input: string): string[] {
+  const nextTags = [...currentTags]
+  const existingTags = new Set(currentTags.map((tag) => tag.toLocaleLowerCase()))
+
+  for (const candidate of input.split(',')) {
+    const tag = candidate.trim().replace(/\s+/g, ' ')
+    const normalizedTag = tag.toLocaleLowerCase()
+    if (!tag || existingTags.has(normalizedTag)) continue
+    nextTags.push(tag)
+    existingTags.add(normalizedTag)
+  }
+
+  return nextTags
+}
 
 interface SharedProps {
   author: MemberProfile
@@ -14,6 +33,7 @@ interface SharedProps {
   onWebsite: () => void
   onLogout: () => void
   onSave: (article: ArticleWriteInput) => Promise<void>
+  onCreateCategory: (name: string) => Promise<ArticleCategory>
 }
 
 type ArticleEditorPageProps = SharedProps & (
@@ -30,7 +50,7 @@ type ArticleEditorPageProps = SharedProps & (
 )
 
 export default function ArticleEditorPage(props: ArticleEditorPageProps) {
-  const { mode, author, categories, onArticles, onWebsite, onLogout, onSave } = props
+  const { mode, author, categories, onArticles, onWebsite, onLogout, onSave, onCreateCategory } = props
   const article = mode === 'edit' ? props.article : null
   const fileInputRef = useRef<HTMLInputElement>(null)
   const toast = useToast()
@@ -39,6 +59,58 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
   const [showDelete, setShowDelete] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [tags, setTags] = useState(article?.tags ?? [])
+  const [tagInput, setTagInput] = useState('')
+  const initialCategoryId = article?.categoryId?.toString()
+    ?? categories.find((category) => category.name === article?.category)?.id.toString()
+    ?? ''
+  const [categoryId, setCategoryId] = useState(initialCategoryId)
+  const [showCategoryInput, setShowCategoryInput] = useState(false)
+  const [categoryName, setCategoryName] = useState('')
+  const [creatingCategory, setCreatingCategory] = useState(false)
+  const selectedCategoryId = categoryId
+    || categories.find((category) => category.id === article?.categoryId)?.id.toString()
+    || categories.find((category) => category.name === article?.category)?.id.toString()
+    || ''
+
+  const addCategory = async () => {
+    const name = categoryName.trim().replace(/\s+/g, ' ')
+    if (!name) {
+      toast.error('Please enter a category name.')
+      return
+    }
+
+    setCreatingCategory(true)
+    try {
+      const category = await onCreateCategory(name)
+      setCategoryId(category.id.toString())
+      setCategoryName('')
+      setShowCategoryInput(false)
+      toast.success(`Category “${category.name}” added.`)
+    } catch (categoryError) {
+      toast.error(categoryError instanceof Error ? categoryError.message : 'Unable to add category.')
+    } finally {
+      setCreatingCategory(false)
+    }
+  }
+
+  const addTags = () => {
+    const candidates = tagInput.split(',').map((tag) => tag.trim()).filter(Boolean)
+    if (candidates.some((tag) => tag.length > MAX_TAG_LENGTH)) {
+      toast.error(`Each tag must not exceed ${MAX_TAG_LENGTH} characters.`)
+      return false
+    }
+
+    const nextTags = mergeTags(tags, tagInput)
+    if (nextTags.length > MAX_TAGS) {
+      toast.error(`You can add up to ${MAX_TAGS} tags.`)
+      return false
+    }
+
+    setTags(nextTags)
+    setTagInput('')
+    return true
+  }
 
   const handleThumbnail = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -80,16 +152,27 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
       return
     }
     const form = new FormData(event.currentTarget)
+    const content = String(form.get('content') ?? '')
+    const pendingTags = mergeTags(tags, tagInput)
+    if (pendingTags.some((tag) => tag.length > MAX_TAG_LENGTH)) {
+      toast.error(`Each tag must not exceed ${MAX_TAG_LENGTH} characters.`)
+      return
+    }
+    if (pendingTags.length > MAX_TAGS) {
+      toast.error(`You can add up to ${MAX_TAGS} tags.`)
+      return
+    }
     setSaving(true)
 
     try {
       await onSave({
         categoryId: Number(form.get('categoryId')),
+        tags: pendingTags,
         title: String(form.get('title') ?? ''),
         excerpt: String(form.get('introduction') ?? ''),
         image: thumbnail,
         status,
-        sections: [{ title: '', paragraphs: [String(form.get('content') ?? '')] }],
+        sections: [{ title: '', paragraphs: splitArticleParagraphs(content) }],
       })
       toast.success(status === 'draft' ? 'Article saved as draft.' : 'Article saved successfully.')
       onArticles()
@@ -165,14 +248,24 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
             </div>
           </section>
 
-          <label className="create-article__field create-article__field--short">
-            <span>Category</span>
+          <div className="create-article__field create-article__field--short">
+            <div className="create-article__category-label">
+              <span>Category</span>
+              <button
+                type="button"
+                className="create-article__category-toggle"
+                onClick={() => setShowCategoryInput((current) => !current)}
+                aria-expanded={showCategoryInput}
+                aria-controls="new-category-fields"
+              >
+                {showCategoryInput ? <X size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+                {showCategoryInput ? 'Cancel' : 'Add category'}
+              </button>
+            </div>
             <select
-              key={categories.map((category) => category.id).join('-')}
               name="categoryId"
-              defaultValue={article?.categoryId?.toString()
-                ?? categories.find((category) => category.name === article?.category)?.id.toString()
-                ?? ''}
+              value={selectedCategoryId}
+              onChange={(event) => setCategoryId(event.target.value)}
               required
               disabled={categories.length === 0}
             >
@@ -181,7 +274,72 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
             </select>
-          </label>
+            {showCategoryInput && (
+              <div id="new-category-fields" className="create-article__category-add">
+                <input
+                  value={categoryName}
+                  maxLength={100}
+                  placeholder="New category name"
+                  aria-label="New category name"
+                  autoFocus
+                  disabled={creatingCategory}
+                  onChange={(event) => setCategoryName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      void addCategory()
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={creatingCategory || !categoryName.trim()}
+                  onClick={() => { void addCategory() }}
+                >
+                  {creatingCategory ? 'Adding...' : 'Add'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="create-article__field create-article__field--tags">
+            <label htmlFor="article-tags">Tags</label>
+            <div className="create-article__tag-editor">
+              {tags.map((tag) => (
+                <span key={tag.toLocaleLowerCase()} className="create-article__tag">
+                  {tag}
+                  <button
+                    type="button"
+                    aria-label={`Remove tag ${tag}`}
+                    onClick={() => setTags((current) => current.filter((item) => item !== tag))}
+                  >
+                    <X size={14} aria-hidden="true" />
+                  </button>
+                </span>
+              ))}
+              <input
+                id="article-tags"
+                value={tagInput}
+                placeholder={tags.length === 0 ? 'Type a tag and press Enter' : 'Add another tag'}
+                disabled={tags.length >= MAX_TAGS}
+                onChange={(event) => setTagInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ',') {
+                    event.preventDefault()
+                    addTags()
+                  } else if (event.key === 'Backspace' && tagInput === '' && tags.length > 0) {
+                    setTags((current) => current.slice(0, -1))
+                  }
+                }}
+                onBlur={() => {
+                  if (tagInput.trim()) addTags()
+                }}
+              />
+            </div>
+            <span className="create-article__field-hint">
+              Press Enter or comma to add a tag ({tags.length}/{MAX_TAGS}).
+            </span>
+          </div>
 
           <label className="create-article__field create-article__field--short create-article__field--disabled">
             <span>Author name</span>

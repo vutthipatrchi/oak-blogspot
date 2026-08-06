@@ -4,12 +4,86 @@ import { authorizationHeaders, toApiError } from './auth'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '')
 
+export const hasBackendApi = Boolean(apiBaseUrl)
+
+export interface ArticlePage {
+  articles: Article[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    hasMore: boolean
+  }
+}
+
+export interface ArticlePageFilters {
+  page: number
+  limit: number
+  status?: 'draft' | 'published'
+  category?: string
+  search?: string
+}
+
+export async function fetchArticlePage(filters: ArticlePageFilters): Promise<ArticlePage> {
+  if (!apiBaseUrl) throw new Error('Backend API is not configured.')
+
+  try {
+    const response = await axios.get<Partial<ArticlePage> & { articles?: Article[] }>(`${apiBaseUrl}/api/articles`, {
+      params: filters,
+    })
+    const allArticles = response.data.articles ?? []
+    if (response.data.pagination) {
+      return { articles: allArticles, pagination: response.data.pagination }
+    }
+
+    // Compatibility with API deployments that do not support pagination yet.
+    const query = filters.search?.trim().toLowerCase()
+    const matchingArticles = allArticles.filter((article) => {
+      if (filters.status && article.status !== filters.status) return false
+      if (filters.category && article.category !== filters.category) return false
+      if (!query) return true
+      return [article.title, article.excerpt, article.author, ...article.tags]
+        .join(' ')
+        .toLowerCase()
+        .includes(query)
+    })
+    const from = (filters.page - 1) * filters.limit
+    const articles = matchingArticles.slice(from, from + filters.limit)
+    return {
+      articles,
+      pagination: {
+        page: filters.page,
+        limit: filters.limit,
+        total: matchingArticles.length,
+        hasMore: from + articles.length < matchingArticles.length,
+      },
+    }
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
 export async function fetchCategories(): Promise<ArticleCategory[]> {
   if (!apiBaseUrl) throw new Error('Backend API is not configured.')
 
   try {
     const response = await axios.get<{ categories?: ArticleCategory[] }>(`${apiBaseUrl}/api/categories`)
     return response.data.categories ?? []
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
+export async function createCategory(name: string): Promise<ArticleCategory> {
+  if (!apiBaseUrl) throw new Error('Backend API is not configured.')
+
+  try {
+    const response = await axios.post<{ category: ArticleCategory }>(
+      `${apiBaseUrl}/api/categories`,
+      { name },
+      { headers: { 'Content-Type': 'application/json', ...authorizationHeaders() } },
+    )
+    return response.data.category
   } catch (error) {
     throw toApiError(error)
   }
@@ -30,6 +104,7 @@ export async function fetchArticles(): Promise<Article[]> {
 
 export interface ArticleWriteInput {
   categoryId: number
+  tags: string[]
   title: string
   excerpt: string
   image: string

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { splitArticleParagraphs } from '@/lib/articleContent'
 import type { Article } from '../data/articles'
 import type { MemberProfile } from '../data/member'
 import { createArticleComment, toggleArticleLike } from '../lib/articles'
@@ -191,7 +192,7 @@ export default function ArticlePage({
                     {section.title && (
                       <h2 className="article-detail__heading">{section.title}</h2>
                     )}
-                    {section.paragraphs.map((paragraph, pIndex) => (
+                    {section.paragraphs.flatMap(splitArticleParagraphs).map((paragraph, pIndex) => (
                       <p key={pIndex} className="article-detail__paragraph">
                         {paragraph}
                       </p>

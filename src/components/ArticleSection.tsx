@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
@@ -13,12 +13,15 @@ import {
   type Article,
   type ArticleCategory,
 } from '@/data/articles'
+import { fetchArticlePage, hasBackendApi } from '@/lib/articles'
 
 interface ArticleSectionProps {
   articles: Article[]
   categories: ArticleCategory[]
   onSelectArticle: (id: number) => void
 }
+
+const ARTICLES_PER_PAGE = 6
 
 function ArticleCard({
   article,
@@ -72,6 +75,14 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1)
+  const [visibleArticleCount, setVisibleArticleCount] = useState(ARTICLES_PER_PAGE)
+  const [pagedArticles, setPagedArticles] = useState<Article[]>(
+    () => articles.filter((article) => article.status === 'published').slice(0, ARTICLES_PER_PAGE),
+  )
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasNextPage, setHasNextPage] = useState(false)
+  const [loadingPage, setLoadingPage] = useState(false)
+  const requestIdRef = useRef(0)
 
   const filteredArticles = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -98,6 +109,84 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
   }, [activeCategory, articles, searchQuery, t])
 
   const searchSuggestions = searchQuery.trim() ? filteredArticles.slice(0, 3) : []
+  const visibleArticles = hasBackendApi
+    ? pagedArticles
+    : filteredArticles.slice(0, visibleArticleCount)
+  const hasMoreArticles = hasBackendApi
+    ? hasNextPage
+    : visibleArticles.length < filteredArticles.length
+
+  useEffect(() => {
+    if (!hasBackendApi) return
+
+    const requestId = ++requestIdRef.current
+    const timer = window.setTimeout(() => {
+      setLoadingPage(true)
+      fetchArticlePage({
+        page: 1,
+        limit: ARTICLES_PER_PAGE,
+        status: 'published',
+        category: activeCategory === 'Highlight' ? undefined : activeCategory,
+        search: searchQuery.trim() || undefined,
+      })
+        .then((result) => {
+          if (requestId !== requestIdRef.current) return
+          setPagedArticles(result.articles)
+          setCurrentPage(1)
+          setHasNextPage(result.pagination.hasMore)
+        })
+        .catch(() => {
+          if (requestId !== requestIdRef.current) return
+          const fallbackArticles = filteredArticles.slice(0, ARTICLES_PER_PAGE)
+          setPagedArticles(fallbackArticles)
+          setCurrentPage(1)
+          setHasNextPage(filteredArticles.length > fallbackArticles.length)
+        })
+        .finally(() => {
+          if (requestId === requestIdRef.current) setLoadingPage(false)
+        })
+    }, searchQuery.trim() ? 300 : 0)
+
+    return () => window.clearTimeout(timer)
+  }, [activeCategory, filteredArticles, searchQuery])
+
+  const loadMoreArticles = async () => {
+    if (!hasBackendApi) {
+      setVisibleArticleCount((current) => current + ARTICLES_PER_PAGE)
+      return
+    }
+    if (loadingPage || !hasNextPage) return
+
+    const nextPage = currentPage + 1
+    const requestId = ++requestIdRef.current
+    setLoadingPage(true)
+    try {
+      const result = await fetchArticlePage({
+        page: nextPage,
+        limit: ARTICLES_PER_PAGE,
+        status: 'published',
+        category: activeCategory === 'Highlight' ? undefined : activeCategory,
+        search: searchQuery.trim() || undefined,
+      })
+      if (requestId !== requestIdRef.current) return
+      setPagedArticles((current) => [
+        ...current,
+        ...result.articles.filter((article) => !current.some((item) => item.id === article.id)),
+      ])
+      setCurrentPage(nextPage)
+      setHasNextPage(result.pagination.hasMore)
+    } catch {
+      if (requestId === requestIdRef.current) setHasNextPage(true)
+    } finally {
+      if (requestId === requestIdRef.current) setLoadingPage(false)
+    }
+  }
+
+  const selectCategory = (category: string) => {
+    setActiveCategory(category)
+    setVisibleArticleCount(ARTICLES_PER_PAGE)
+    setHasNextPage(false)
+  }
 
   return (
     <section className="articles-section" id="articles">
@@ -110,7 +199,7 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
               key={category}
               type="button"
               className={`filter-btn${activeCategory === category ? ' filter-btn--active' : ''}`}
-              onClick={() => setActiveCategory(category)}
+              onClick={() => selectCategory(category)}
             >
               {t(`articles.categories.${category}`, { defaultValue: category })}
             </button>
@@ -120,7 +209,7 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
         <div className="w-full md:hidden">
           <Select
             value={activeCategory}
-            onValueChange={(value) => value && setActiveCategory(value)}
+            onValueChange={(value) => value && selectCategory(value)}
           >
             <SelectTrigger className="h-12 w-full rounded-xl bg-white px-4" aria-label={t('articles.categoryLabel')}>
               <SelectValue />
@@ -150,6 +239,8 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
             value={searchQuery}
             onChange={(event) => {
               setSearchQuery(event.target.value)
+              setVisibleArticleCount(ARTICLES_PER_PAGE)
+              setHasNextPage(false)
               setSearchFocused(true)
               setActiveSuggestionIndex(-1)
             }}
@@ -170,6 +261,7 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
                 onSelectArticle(searchSuggestions[activeSuggestionIndex].id)
               } else if (event.key === 'Escape') {
                 setSearchQuery('')
+                setVisibleArticleCount(ARTICLES_PER_PAGE)
                 setSearchFocused(false)
                 setActiveSuggestionIndex(-1)
               }
@@ -216,16 +308,16 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
       </div>
 
       <p className="visually-hidden" role="status" aria-live="polite">
-        {t('articles.resultsStatus', { count: filteredArticles.length })}
+        {t('articles.resultsStatus', { count: hasBackendApi ? visibleArticles.length : filteredArticles.length })}
       </p>
 
       <div className="articles-grid" id="articles-grid">
-        {filteredArticles.map((article) => (
+        {visibleArticles.map((article) => (
           <ArticleCard key={article.id} article={article} onSelect={onSelectArticle} />
         ))}
       </div>
 
-      {filteredArticles.length === 0 && (
+      {!loadingPage && visibleArticles.length === 0 && (
         <p className="articles-empty">
           {searchQuery.trim()
             ? t('articles.emptyWithQuery', { query: searchQuery.trim() })
@@ -233,9 +325,18 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
         </p>
       )}
 
-      <div className="view-more">
-        <a href="#articles" className="view-more__link">{t('articles.viewMore')}</a>
-      </div>
+      {hasMoreArticles && (
+        <div className="view-more">
+          <button
+            type="button"
+            className="view-more__link"
+            disabled={loadingPage}
+            onClick={() => { void loadMoreArticles() }}
+          >
+            {t('articles.viewMore')}
+          </button>
+        </div>
+      )}
     </section>
   )
 }

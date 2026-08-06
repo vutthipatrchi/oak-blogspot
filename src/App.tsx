@@ -18,7 +18,7 @@ import {
   updateMemberProfile,
   type StoredAuth,
 } from './lib/auth'
-import { createArticle, deleteArticle as deleteArticleRequest, fetchArticles, fetchCategories, updateArticle, type ArticleWriteInput } from './lib/articles'
+import { createArticle, createCategory, deleteArticle as deleteArticleRequest, fetchArticles, fetchCategories, updateArticle, type ArticleWriteInput } from './lib/articles'
 import './App.css'
 
 const ArticlePage = lazy(() => import('./components/ArticlePage'))
@@ -289,6 +289,13 @@ function App() {
     setArticleList((current) => [article, ...current.filter((item) => item.id !== article.id)])
   }, [])
 
+  const saveCategory = useCallback(async (name: string) => {
+    const category = await createCategory(name)
+    setCategoryList((current) => [...current.filter((item) => item.id !== category.id), category]
+      .sort((left, right) => left.name.localeCompare(right.name)))
+    return category
+  }, [])
+
   const saveEditedArticle = useCallback(async (id: number, input: ArticleWriteInput) => {
     const article = await updateArticle(id, input)
     setArticleList((current) => current.map((item) => item.id === id ? article : item))
@@ -394,6 +401,7 @@ function App() {
         mode="create"
         author={currentMember}
         categories={categoryList}
+        onCreateCategory={saveCategory}
         onArticles={openArticleManagement}
         onWebsite={goHome}
         onLogout={logoutAdmin}
@@ -421,6 +429,7 @@ function App() {
           article={article}
           author={currentMember}
           categories={categoryList}
+          onCreateCategory={saveCategory}
           onArticles={openArticleManagement}
           onWebsite={goHome}
           onLogout={logoutAdmin}
