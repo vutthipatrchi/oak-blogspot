@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Article } from '../data/articles'
 
 interface HeroBookProps {
@@ -7,6 +8,7 @@ interface HeroBookProps {
 }
 
 export default function HeroBook({ articles, onSelectArticle }: HeroBookProps) {
+  const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [spreadIndex, setSpreadIndex] = useState(0)
   const [direction, setDirection] = useState<'next' | 'previous'>('next')
@@ -23,10 +25,10 @@ export default function HeroBook({ articles, onSelectArticle }: HeroBookProps) {
     return (
       <div className="hero-book hero-book--closed">
         <button type="button" className="hero-book__cover" onClick={() => setIsOpen(true)}>
-          <span className="hero-book__cover-kicker">A CURATED ARCHIVE</span>
-          <strong>THINKERS<br />&amp; WRITERS</strong>
+          <span className="hero-book__cover-kicker">{t('hero.bookKicker')}</span>
+          <strong>{t('hero.bookTitleLine1')}<br />{t('hero.bookTitleLine2')}</strong>
           <span className="hero-book__cover-line" />
-          <span className="hero-book__cover-action">เปิดหนังสือ</span>
+          <span className="hero-book__cover-action">{t('hero.bookAction')}</span>
         </button>
       </div>
     )
@@ -41,7 +43,7 @@ export default function HeroBook({ articles, onSelectArticle }: HeroBookProps) {
             type="button"
             className={`hero-book__page hero-book__page--${index === 0 ? 'left' : 'right'}`}
             onClick={() => onSelectArticle(article.id)}
-            aria-label={`เปิดบทความ ${article.title}`}
+            aria-label={t('hero.openArticle', { title: article.title })}
           >
             <img src={article.image} alt="" />
             <span className="hero-book__page-number">{firstPageIndex + index + 1}</span>
@@ -55,21 +57,27 @@ export default function HeroBook({ articles, onSelectArticle }: HeroBookProps) {
           type="button"
           onClick={() => turnPage(spreadIndex - 1)}
           disabled={spreadIndex === 0}
-          aria-label="หน้าก่อนหน้า"
+          aria-label={t('hero.previousPage')}
         >
           ←
         </button>
-        <span>หน้า {firstPageIndex + 1}–{Math.min(firstPageIndex + 2, articles.length)} / {articles.length}</span>
+        <span>
+          {t('hero.pageRange', {
+            start: firstPageIndex + 1,
+            end: Math.min(firstPageIndex + 2, articles.length),
+            total: articles.length,
+          })}
+        </span>
         <button
           type="button"
           onClick={() => turnPage(spreadIndex + 1)}
           disabled={spreadIndex >= totalSpreads - 1}
-          aria-label="หน้าถัดไป"
+          aria-label={t('hero.nextPage')}
         >
           →
         </button>
         <button type="button" className="hero-book__close" onClick={() => setIsOpen(false)}>
-          ปิด
+          {t('hero.closeBook')}
         </button>
       </div>
     </div>

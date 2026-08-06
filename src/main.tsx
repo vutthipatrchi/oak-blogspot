@@ -1,10 +1,20 @@
-import { StrictMode } from 'react'
+import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.tsx'
+import './i18n'
+import { ToastProvider } from './components/ui/toast'
+
+export const App = lazy(() => import('./App.tsx'))
+export const HealthTestPage = lazy(() => import('./pages/HealthTestPage.tsx'))
+
+const page = window.location.pathname === '/health-test'
+  ? <HealthTestPage />
+  : <App />
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <Suspense fallback={<main className="page">Loading…</main>}>
+      <ToastProvider>{page}</ToastProvider>
+    </Suspense>
   </StrictMode>,
 )
