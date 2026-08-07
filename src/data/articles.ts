@@ -55,33 +55,6 @@ const authorBio = [
   "When i'm not writing, I spends time volunteering at my local animal shelter, helping cats find loving homes.",
 ]
 
-const defaultComments: Comment[] = [
-  {
-    id: 1,
-    author: 'Jacob Lash',
-    avatar:
-      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop&crop=face',
-    date: '12 September 2024 at 18:30',
-    text: 'I loved this article! It really helped me understand my cat better.',
-  },
-  {
-    id: 2,
-    author: 'Ahri',
-    avatar:
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=face',
-    date: '12 September 2024 at 20:15',
-    text: 'So insightful! The section on body language was especially helpful.',
-  },
-  {
-    id: 3,
-    author: 'Mimi mama',
-    avatar:
-      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face',
-    date: '13 September 2024 at 09:42',
-    text: 'My two cats definitely have playful personalities. Great read!',
-  },
-]
-
 export const articles: Article[] = [
   {
     id: 1,
@@ -99,7 +72,7 @@ export const articles: Article[] = [
       'ผลงานและการสอนของเขามักเชื่อมโยงการเมืองเข้ากับวัฒนธรรม ภาพยนตร์ ดนตรี เพศ และอาหาร ผ่านมุมมองแบบสหวิทยาการ',
     ],
     date: '21 June 2026',
-    likes: 284,
+    likes: 0,
     sections: [
       {
         title: 'ความย้อนแย้งของ “เจ้าพ่อโพสต์โมเดิร์น”',
@@ -147,7 +120,7 @@ export const articles: Article[] = [
       label: 'วิกิพีเดีย: ธเนศ วงศ์ยานนาวา',
       url: 'https://th.wikipedia.org/wiki/%E0%B8%98%E0%B9%80%E0%B8%99%E0%B8%A8_%E0%B8%A7%E0%B8%87%E0%B8%A8%E0%B9%8C%E0%B8%A2%E0%B8%B2%E0%B8%99%E0%B8%99%E0%B8%B2%E0%B8%A7%E0%B8%B2',
     },
-    comments: defaultComments,
+    comments: [],
   },
   {
     id: 2,
@@ -165,7 +138,7 @@ export const articles: Article[] = [
       'เรื่องราวการเดินเท้ากลับเกาะสมุยของเขาถูกถ่ายทอดผ่าน เดินสู่อิสรภาพ และ ก้าวย่างบนทางแห่งรัก',
     ],
     date: '11 September 2024',
-    likes: 321,
+    likes: 0,
     sections: [
       {
         title: 'การเดินทางในฐานะปฏิบัติการทางปรัชญา',
@@ -226,7 +199,7 @@ export const articles: Article[] = [
         ],
       },
     ],
-    comments: defaultComments,
+    comments: [],
   },
   {
     id: 3,
@@ -244,7 +217,7 @@ export const articles: Article[] = [
       'ผลงานสำคัญของเขา ได้แก่ สาระของความว่างเปล่า และ สุญญกาล ภายใต้ชายคาสำนักพิมพ์สมมติ',
     ],
     date: '11 September 2024',
-    likes: 198,
+    likes: 0,
     sections: [
       {
         title: 'ถ้อยคำที่เกิดขึ้นท่ามกลางความเงียบ',
@@ -282,7 +255,7 @@ export const articles: Article[] = [
         ],
       },
     ],
-    comments: defaultComments,
+    comments: [],
   },
   {
     id: 4,
@@ -300,7 +273,7 @@ export const articles: Article[] = [
       'ผลงานของเขา ได้แก่ อื่นใดนอกจากนั้น ฟ้าบางแห่งร่ำลาเมฆฝนไปเนิ่นนาน แบบจำลองของเหตุผล และ ประติมากรรมแห่งความหลงลืม',
     ],
     date: '11 September 2024',
-    likes: 256,
+    likes: 0,
     sections: [
       {
         title: 'รอยร้าวของจิตวิญญาณในวรรณกรรมนอกกระแส',
@@ -338,7 +311,7 @@ export const articles: Article[] = [
         ],
       },
     ],
-    comments: defaultComments,
+    comments: [],
   },
   {
     id: 5,
@@ -356,7 +329,7 @@ export const articles: Article[] = [
       'ผลงานของเขาโดดเด่นด้วยการเล่าเรื่องแบบโพสต์โมเดิร์น ความขี้เล่นทางภาษา และการชวนผู้อ่านเข้ามามีส่วนร่วมสร้างความหมาย',
     ],
     date: '11 September 2024',
-    likes: 167,
+    likes: 0,
     sections: [
       {
         title: 'เขาวงกตกระจกเงาที่ไร้จุดสิ้นสุด',
@@ -407,7 +380,7 @@ export const articles: Article[] = [
         ],
       },
     ],
-    comments: defaultComments,
+    comments: [],
   },
   {
     id: 6,
@@ -422,7 +395,7 @@ export const articles: Article[] = [
       'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face',
     authorBio,
     date: '11 September 2024',
-    likes: 312,
+    likes: 0,
     sections: [
       {
         title: 'Nutrition Matters',
@@ -437,7 +410,7 @@ export const articles: Article[] = [
         ],
       },
     ],
-    comments: defaultComments,
+    comments: [],
   },
 ]
 
