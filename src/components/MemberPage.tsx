@@ -139,7 +139,19 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
           {view === 'profile' ? (
             <form className="member-card" onSubmit={handleProfileSave}>
               <div className="member-card__photo">
-                <img src={draft.avatar} alt={t('member.profilePreview')} />
+                <div className="member-card__avatar">
+                  {draft.avatar ? (
+                    <img src={draft.avatar} alt={t('member.profilePreview')} />
+                  ) : (
+                    <User
+                      className="member-card__avatar-placeholder"
+                      size={56}
+                      strokeWidth={1.4}
+                      role="img"
+                      aria-label={t('member.profilePreview')}
+                    />
+                  )}
+                </div>
                 <input
                   ref={fileInputRef}
                   type="file"
