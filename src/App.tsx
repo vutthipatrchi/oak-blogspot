@@ -6,6 +6,7 @@ import { HeroSection } from './components/HeroSection'
 import { SiteHeader } from './components/SiteHeader'
 import type { MemberProfile } from './data/member'
 import { articles as staticArticles, type ArticleCategory } from './data/articles'
+import { isPublishedArticle } from './lib/articleContent'
 import {
   canManageArticles,
   clearAuth,
@@ -85,9 +86,9 @@ function App() {
 
   const selectedArticle = view.page === 'article'
     ? articleList.find((article) => article.id === view.id
-      && (article.status === 'published' || Boolean(articleAccessToken)))
+      && (isPublishedArticle(article) || Boolean(articleAccessToken)))
     : undefined
-  const publishedArticles = articleList.filter((article) => article.status === 'published')
+  const publishedArticles = articleList.filter(isPublishedArticle)
 
   useEffect(() => {
     if (!import.meta.env.VITE_API_BASE_URL) return
@@ -98,6 +99,7 @@ function App() {
       .then((loadedArticles) => {
         if (!ignore) {
           setArticleList(loadedArticles)
+          setArticlesError('')
         }
       })
       .catch((error: unknown) => {

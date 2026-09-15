@@ -1,4 +1,8 @@
-import type { ArticleSection } from '../data/articles'
+import type { Article, ArticleSection } from '../data/articles'
+
+export function isPublishedArticle(article: Article): boolean {
+  return article.status !== 'draft'
+}
 
 export function splitArticleParagraphs(content: string): string[] {
   return content

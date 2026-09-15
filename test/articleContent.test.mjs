@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { articles } from '../src/data/articles.ts'
-import { articleSectionsFromForm } from '../src/lib/articleContent.ts'
+import { articleSectionsFromForm, isPublishedArticle } from '../src/lib/articleContent.ts'
 
 function formFor(sections) {
   const form = new FormData()
@@ -53,4 +53,8 @@ test('new plain content and bullet-only sections can be saved', () => {
   assert.deepEqual(articleSectionsFromForm(form, empty), [{ title: '', paragraphs: ['First paragraph', 'Second paragraph'] }])
   const bulletsOnly = [{ title: 'List', paragraphs: [], bullets: [{ term: 'Term', description: 'Description' }] }]
   assert.deepEqual(articleSectionsFromForm(formFor(bulletsOnly), bulletsOnly), bulletsOnly)
+})
+test('articles without an explicit status remain visible as published static fallbacks', () => {
+  assert.equal(articles.every(isPublishedArticle), true)
+  assert.equal(isPublishedArticle({ ...articles[0], status: 'draft' }), false)
 })
