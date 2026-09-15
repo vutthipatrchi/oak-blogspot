@@ -1,8 +1,8 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Image, Plus, Trash2, X } from 'lucide-react'
-import type { Article, ArticleCategory } from '@/data/articles'
+import type { Article, ArticleCategory, ArticleSection } from '@/data/articles'
 import type { MemberProfile } from '@/data/member'
-import { splitArticleParagraphs } from '@/lib/articleContent'
+import { articleSectionsFromForm } from '@/lib/articleContent'
 import { uploadArticleImage, type ArticleWriteInput } from '@/lib/articles'
 import AdminLayout from './AdminLayout'
 import DeleteArticleDialog from './DeleteArticleDialog'
@@ -49,9 +49,30 @@ type ArticleEditorPageProps = SharedProps & (
     }
 )
 
+interface EditableSection {
+  key: string
+  section: ArticleSection
+  bulletKeys: string[]
+}
+
 export default function ArticleEditorPage(props: ArticleEditorPageProps) {
   const { mode, author, categories, onArticles, onWebsite, onLogout, onSave, onCreateCategory } = props
   const article = mode === 'edit' ? props.article : null
+  const initialSections = article?.sections.length
+    ? article.sections
+    : [{ title: '', paragraphs: [] }]
+  const nextSectionKey = useRef(initialSections.length)
+  const nextBulletKey = useRef(initialSections.reduce(
+    (count, section) => count + (section.bullets?.length ?? 0),
+    0,
+  ))
+  const [editableSections, setEditableSections] = useState<EditableSection[]>(() => initialSections.map(
+    (section, sectionIndex) => ({
+      key: `section-${sectionIndex}`,
+      section,
+      bulletKeys: (section.bullets ?? []).map((_bullet, bulletIndex) => `bullet-${sectionIndex}-${bulletIndex}`),
+    }),
+  ))
   const fileInputRef = useRef<HTMLInputElement>(null)
   const toast = useToast()
   const [thumbnail, setThumbnail] = useState(article?.imagePath ?? article?.image ?? '')
@@ -112,6 +133,48 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
     return true
   }
 
+  const addSection = () => {
+    const key = `section-new-${nextSectionKey.current}`
+    nextSectionKey.current += 1
+    setEditableSections((current) => [
+      ...current,
+      { key, section: { title: '', paragraphs: [] }, bulletKeys: [] },
+    ])
+  }
+
+  const removeSection = (key: string) => {
+    setEditableSections((current) => current.length > 1
+      ? current.filter((item) => item.key !== key)
+      : current)
+  }
+
+  const addBullet = (sectionKey: string) => {
+    const bulletKey = `bullet-new-${nextBulletKey.current}`
+    nextBulletKey.current += 1
+    setEditableSections((current) => current.map((item) => item.key === sectionKey
+      ? {
+          ...item,
+          section: {
+            ...item.section,
+            bullets: [...(item.section.bullets ?? []), { term: '', description: '' }],
+          },
+          bulletKeys: [...item.bulletKeys, bulletKey],
+        }
+      : item))
+  }
+
+  const removeBullet = (sectionKey: string, bulletIndex: number) => {
+    setEditableSections((current) => current.map((item) => {
+      if (item.key !== sectionKey) return item
+      const bullets = (item.section.bullets ?? []).filter((_bullet, index) => index !== bulletIndex)
+      return {
+        ...item,
+        section: { ...item.section, bullets: bullets.length ? bullets : undefined },
+        bulletKeys: item.bulletKeys.filter((_key, index) => index !== bulletIndex),
+      }
+    }))
+  }
+
   const handleThumbnail = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -152,7 +215,19 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
       return
     }
     const form = new FormData(event.currentTarget)
-    const content = String(form.get('content') ?? '')
+    const sections = articleSectionsFromForm(form, editableSections.map((item) => item.section))
+    if (sections.some((section) => section.bullets?.some((bullet) => (
+      Boolean(bullet.term.trim()) !== Boolean(bullet.description.trim())
+    )))) {
+      toast.error('Each bullet must include both a term and description.')
+      return
+    }
+    if (!sections.some((section) => section.paragraphs.length || section.bullets?.some(
+      (bullet) => bullet.term.trim() || bullet.description.trim(),
+    ))) {
+      toast.error('Please enter article content.')
+      return
+    }
     const pendingTags = mergeTags(tags, tagInput)
     if (pendingTags.some((tag) => tag.length > MAX_TAG_LENGTH)) {
       toast.error(`Each tag must not exceed ${MAX_TAG_LENGTH} characters.`)
@@ -172,7 +247,7 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
         excerpt: String(form.get('introduction') ?? ''),
         image: thumbnail,
         status,
-        sections: [{ title: '', paragraphs: splitArticleParagraphs(content) }],
+        sections,
       })
       toast.success(status === 'draft' ? 'Article saved as draft.' : 'Article saved successfully.')
       onArticles()
@@ -182,10 +257,6 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
       setSaving(false)
     }
   }
-
-  const content = article?.sections
-    .flatMap((section) => section.paragraphs)
-    .join('\n\n') ?? ''
 
   return (
     <AdminLayout onArticles={onArticles} onWebsite={onWebsite} onLogout={onLogout}>
@@ -348,7 +419,13 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
 
           <label className="create-article__field">
             <span>Title</span>
-            <input name="title" defaultValue={article?.title ?? ''} placeholder="Article title" required />
+            <input
+              name="title"
+              defaultValue={article?.title ?? ''}
+              placeholder="Article title"
+              maxLength={200}
+              required
+            />
           </label>
 
           <label className="create-article__field">
@@ -363,16 +440,87 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
             />
           </label>
 
-          <label className="create-article__field">
-            <span>Content</span>
-            <textarea
-              name="content"
-              defaultValue={content}
-              placeholder="Content"
-              className="create-article__content-input"
-              required
-            />
-          </label>
+          {editableSections.map((editableSection, index) => {
+            const { section } = editableSection
+            return (
+            <section className="create-article__content-section" key={editableSection.key}>
+              <div className="create-article__content-section-header">
+                <strong>Section {index + 1}</strong>
+                {editableSections.length > 1 && (
+                  <button
+                    type="button"
+                    className="create-article__section-action create-article__section-action--danger"
+                    onClick={() => removeSection(editableSection.key)}
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                    Remove section
+                  </button>
+                )}
+              </div>
+              <label className="create-article__field">
+                <span>Section {index + 1} heading (optional)</span>
+                <input name={`section-title-${index}`} defaultValue={section.title} maxLength={200} />
+              </label>
+              <label className="create-article__field">
+                <span>{editableSections.length === 1 ? 'Content' : `Section ${index + 1} content`}</span>
+                <textarea
+                  name={`section-content-${index}`}
+                  defaultValue={section.paragraphs.join('\n\n')}
+                  placeholder="Content"
+                  className="create-article__content-input"
+                />
+              </label>
+              {section.bullets?.map((bullet, bulletIndex) => (
+                <div className="create-article__bullet" key={editableSection.bulletKeys[bulletIndex]}>
+                  <div className="create-article__bullet-header">
+                    <strong>Bullet {bulletIndex + 1}</strong>
+                    <button
+                      type="button"
+                      className="create-article__section-action create-article__section-action--danger"
+                      onClick={() => removeBullet(editableSection.key, bulletIndex)}
+                    >
+                      <X size={15} aria-hidden="true" />
+                      Remove bullet
+                    </button>
+                  </div>
+                  <label className="create-article__field">
+                    <span>Section {index + 1}, bullet {bulletIndex + 1} term</span>
+                    <input
+                      name={`section-bullet-term-${index}-${bulletIndex}`}
+                      defaultValue={bullet.term}
+                      maxLength={200}
+                    />
+                  </label>
+                  <label className="create-article__field">
+                    <span>Section {index + 1}, bullet {bulletIndex + 1} description</span>
+                    <textarea
+                      name={`section-bullet-description-${index}-${bulletIndex}`}
+                      defaultValue={bullet.description}
+                      maxLength={5000}
+                      rows={3}
+                    />
+                  </label>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="create-article__section-action"
+                onClick={() => addBullet(editableSection.key)}
+              >
+                <Plus size={16} aria-hidden="true" />
+                Add bullet
+              </button>
+            </section>
+          )})}
+
+          <button
+            type="button"
+            className="create-article__add-section"
+            onClick={addSection}
+          >
+            <Plus size={18} aria-hidden="true" />
+            Add section
+          </button>
 
           {mode === 'edit' && (
             <button

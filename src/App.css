@@ -929,6 +929,62 @@
   min-height: 570px;
 }
 
+.create-article__content-section {
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+  border: 1px solid #d7d3cd;
+  border-radius: 12px;
+  background: #f9f8f6;
+}
+
+.create-article__content-section-header,
+.create-article__bullet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.create-article__bullet {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-left: 3px solid #d7d3cd;
+  background: #fff;
+}
+
+.create-article__section-action,
+.create-article__add-section {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  gap: 6px;
+  padding: 9px 14px;
+  border: 1px solid #75716b;
+  border-radius: 999px;
+  background: #fff;
+  color: #43403b;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.create-article__section-action--danger {
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #8f352f;
+}
+
+.create-article__add-section {
+  padding: 11px 18px;
+  border-style: dashed;
+}
+
 .create-article__field input:focus,
 .create-article__field select:focus,
 .create-article__field textarea:focus {
