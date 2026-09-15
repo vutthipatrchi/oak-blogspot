@@ -6,6 +6,7 @@ import { HeroSection } from './components/HeroSection'
 import { SiteHeader } from './components/SiteHeader'
 import type { MemberProfile } from './data/member'
 import { articles as staticArticles, type ArticleCategory } from './data/articles'
+import { isPublishedArticle } from './lib/articleContent'
 import {
   canManageArticles,
   clearAuth,
@@ -79,19 +80,26 @@ function App() {
   const [view, setView] = useState<AppView>(viewFromLocation)
   const currentMember = currentAuth?.member ?? null
 
-  const selectedArticle = view.page === 'article'
-    ? articleList.find((article) => article.id === view.id)
+  const articleAccessToken = canManageArticles(currentAuth?.session.role)
+    ? currentAuth?.session.accessToken
     : undefined
-  const publishedArticles = articleList.filter((article) => article.status === 'published')
+
+  const selectedArticle = view.page === 'article'
+    ? articleList.find((article) => article.id === view.id
+      && (isPublishedArticle(article) || Boolean(articleAccessToken)))
+    : undefined
+  const publishedArticles = articleList.filter(isPublishedArticle)
 
   useEffect(() => {
     if (!import.meta.env.VITE_API_BASE_URL) return
 
+    if (!authReady) return
     let ignore = false
-    fetchArticles()
+    fetchArticles(articleAccessToken)
       .then((loadedArticles) => {
         if (!ignore) {
           setArticleList(loadedArticles)
+          setArticlesError('')
         }
       })
       .catch((error: unknown) => {
@@ -105,7 +113,7 @@ function App() {
     return () => {
       ignore = true
     }
-  }, [])
+  }, [articleAccessToken, authReady])
 
   useEffect(() => {
     if (!import.meta.env.VITE_API_BASE_URL) return
