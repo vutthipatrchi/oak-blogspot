@@ -79,16 +79,22 @@ function App() {
   const [view, setView] = useState<AppView>(viewFromLocation)
   const currentMember = currentAuth?.member ?? null
 
+  const articleAccessToken = canManageArticles(currentAuth?.session.role)
+    ? currentAuth?.session.accessToken
+    : undefined
+
   const selectedArticle = view.page === 'article'
-    ? articleList.find((article) => article.id === view.id)
+    ? articleList.find((article) => article.id === view.id
+      && (article.status === 'published' || Boolean(articleAccessToken)))
     : undefined
   const publishedArticles = articleList.filter((article) => article.status === 'published')
 
   useEffect(() => {
     if (!import.meta.env.VITE_API_BASE_URL) return
 
+    if (!authReady) return
     let ignore = false
-    fetchArticles()
+    fetchArticles(articleAccessToken)
       .then((loadedArticles) => {
         if (!ignore) {
           setArticleList(loadedArticles)
@@ -105,7 +111,7 @@ function App() {
     return () => {
       ignore = true
     }
-  }, [])
+  }, [articleAccessToken, authReady])
 
   useEffect(() => {
     if (!import.meta.env.VITE_API_BASE_URL) return

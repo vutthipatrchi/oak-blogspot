@@ -89,13 +89,15 @@ export async function createCategory(name: string): Promise<ArticleCategory> {
   }
 }
 
-export async function fetchArticles(): Promise<Article[]> {
+export async function fetchArticles(accessToken?: string): Promise<Article[]> {
   if (!apiBaseUrl) {
     throw new Error('Backend API is not configured.')
   }
 
   try {
-    const response = await axios.get<{ articles?: Article[] }>(`${apiBaseUrl}/api/articles`)
+    const response = await axios.get<{ articles?: Article[] }>(`${apiBaseUrl}/api/articles`, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    })
     return response.data.articles ?? []
   } catch (error) {
     throw toApiError(error)

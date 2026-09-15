@@ -1,8 +1,8 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { Fragment, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Image, Plus, Trash2, X } from 'lucide-react'
 import type { Article, ArticleCategory } from '@/data/articles'
 import type { MemberProfile } from '@/data/member'
-import { splitArticleParagraphs } from '@/lib/articleContent'
+import { articleSectionsFromForm } from '@/lib/articleContent'
 import { uploadArticleImage, type ArticleWriteInput } from '@/lib/articles'
 import AdminLayout from './AdminLayout'
 import DeleteArticleDialog from './DeleteArticleDialog'
@@ -52,6 +52,9 @@ type ArticleEditorPageProps = SharedProps & (
 export default function ArticleEditorPage(props: ArticleEditorPageProps) {
   const { mode, author, categories, onArticles, onWebsite, onLogout, onSave, onCreateCategory } = props
   const article = mode === 'edit' ? props.article : null
+  const editableSections = article?.sections.length
+    ? article.sections
+    : [{ title: '', paragraphs: [] }]
   const fileInputRef = useRef<HTMLInputElement>(null)
   const toast = useToast()
   const [thumbnail, setThumbnail] = useState(article?.imagePath ?? article?.image ?? '')
@@ -152,7 +155,13 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
       return
     }
     const form = new FormData(event.currentTarget)
-    const content = String(form.get('content') ?? '')
+    const sections = articleSectionsFromForm(form, editableSections)
+    if (!sections.some((section) => section.paragraphs.length || section.bullets?.some(
+      (bullet) => bullet.term.trim() || bullet.description.trim(),
+    ))) {
+      toast.error('Please enter article content.')
+      return
+    }
     const pendingTags = mergeTags(tags, tagInput)
     if (pendingTags.some((tag) => tag.length > MAX_TAG_LENGTH)) {
       toast.error(`Each tag must not exceed ${MAX_TAG_LENGTH} characters.`)
@@ -172,7 +181,7 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
         excerpt: String(form.get('introduction') ?? ''),
         image: thumbnail,
         status,
-        sections: [{ title: '', paragraphs: splitArticleParagraphs(content) }],
+        sections,
       })
       toast.success(status === 'draft' ? 'Article saved as draft.' : 'Article saved successfully.')
       onArticles()
@@ -182,10 +191,6 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
       setSaving(false)
     }
   }
-
-  const content = article?.sections
-    .flatMap((section) => section.paragraphs)
-    .join('\n\n') ?? ''
 
   return (
     <AdminLayout onArticles={onArticles} onWebsite={onWebsite} onLogout={onLogout}>
@@ -363,16 +368,42 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
             />
           </label>
 
-          <label className="create-article__field">
-            <span>Content</span>
-            <textarea
-              name="content"
-              defaultValue={content}
-              placeholder="Content"
-              className="create-article__content-input"
-              required
-            />
-          </label>
+          {editableSections.map((section, index) => (
+            <Fragment key={index}>
+              <label className="create-article__field">
+                <span>Section {index + 1} heading (optional)</span>
+                <input name={`section-title-${index}`} defaultValue={section.title} />
+              </label>
+              <label className="create-article__field">
+                <span>{editableSections.length === 1 ? 'Content' : `Section ${index + 1} content`}</span>
+                <textarea
+                  name={`section-content-${index}`}
+                  defaultValue={section.paragraphs.join('\n\n')}
+                  placeholder="Content"
+                  className="create-article__content-input"
+                />
+              </label>
+              {section.bullets?.map((bullet, bulletIndex) => (
+                <Fragment key={bulletIndex}>
+                  <label className="create-article__field">
+                    <span>Section {index + 1}, bullet {bulletIndex + 1} term</span>
+                    <input
+                      name={`section-bullet-term-${index}-${bulletIndex}`}
+                      defaultValue={bullet.term}
+                    />
+                  </label>
+                  <label className="create-article__field">
+                    <span>Section {index + 1}, bullet {bulletIndex + 1} description</span>
+                    <textarea
+                      name={`section-bullet-description-${index}-${bulletIndex}`}
+                      defaultValue={bullet.description}
+                      rows={3}
+                    />
+                  </label>
+                </Fragment>
+              ))}
+            </Fragment>
+          ))}
 
           {mode === 'edit' && (
             <button
