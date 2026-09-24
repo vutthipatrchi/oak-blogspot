@@ -26,5 +26,6 @@ key or admin API key belongs in the frontend environment.
 - Public published-article browsing and search
 - Member signup, login, profile, and password management
 - Authenticated comments and likes
+- Role-aware notifications for new comments, article likes, replies, and comment likes
 - Admin article list, create, edit, publish, draft, and delete workflows
 - Thai and English UI

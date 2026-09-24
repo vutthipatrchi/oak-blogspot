@@ -284,6 +284,37 @@
   color: #8b8884;
 }
 
+.password-input {
+  position: relative;
+}
+
+.password-input input {
+  padding-right: 52px;
+}
+
+.password-input__toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  transform: translateY(-50%);
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #75716b;
+  cursor: pointer;
+}
+
+.password-input__toggle:hover,
+.password-input__toggle:focus-visible {
+  background: #efeeeb;
+  color: #26231e;
+}
+
 .auth-field--error input,
 .auth-field--error input:focus {
   border-color: #ff4664;
@@ -458,6 +489,55 @@
   color: #75716b;
 }
 
+.auth-form__error {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #ffe2e7;
+  color: #a61b37;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.auth-form__forgot {
+  justify-self: end;
+  margin-top: -16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #43403b;
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.auth-recovery__help,
+.auth-recovery__message {
+  margin: 0;
+  color: #5f5b55;
+  line-height: 1.6;
+}
+
+.auth-card--password-reset > .auth-recovery__message,
+.auth-card--password-reset > .auth-form__error {
+  text-align: center;
+}
+
+.auth-recovery__back {
+  display: block;
+  margin: 28px auto 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #43403b;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 .member-card__avatar img {
   width: 100%;
   height: 100%;
@@ -499,6 +579,10 @@
   background: #fff;
   color: #43403b;
   outline: none;
+}
+
+.member-field .password-input input {
+  padding-right: 52px;
 }
 
 .member-field input:focus {
@@ -927,6 +1011,21 @@
 
 .create-article__field .create-article__content-input {
   min-height: 570px;
+}
+
+.admin-shell__notifications {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 12px;
+  color: #77716a;
+  font-size: 13px;
+}
+
+.admin-shell__notifications .site-header__notification {
+  width: 38px;
+  height: 38px;
+  background: transparent;
 }
 
 .create-article__content-section {
@@ -1675,6 +1774,32 @@
 }
 
 /* Article grid */
+.articles-loading {
+  display: flex;
+  min-height: 240px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #75716b;
+}
+
+.articles-loading__spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #d7efec;
+  border-top-color: #26231e;
+  border-radius: 50%;
+  animation: articles-spin 0.8s linear infinite;
+}
+
+@keyframes articles-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .articles-loading__spinner { animation: none; }
+}
+
 .articles-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -2423,8 +2548,13 @@
   background: #0a66c2;
 }
 
-.social-share--twitter {
-  background: #1da1f2;
+.social-share--x {
+  background: #000;
+}
+
+.social-share--x svg {
+  width: 18px;
+  height: 18px;
 }
 
 .author-card {
@@ -2646,6 +2776,159 @@
   font-size: 16px;
   line-height: 1.6;
   color: #5f5b55;
+}
+
+.comment-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.comment-item__action {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #77716a;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.comment-item__action:hover,
+.comment-item__action--liked {
+  color: #9d3c55;
+}
+
+.comment-item__action--like {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.comment-item__action--liked svg {
+  fill: currentColor;
+}
+
+.comment-item--reply {
+  padding: 16px 0 0;
+  border-top: 0;
+}
+
+.comments__replies {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0 0 0 20px;
+  border-left: 1px solid #dedbd5;
+}
+
+.comment-reply-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.comment-reply-form .comment-form__send {
+  justify-self: start;
+}
+
+.notification-menu {
+  position: relative;
+}
+
+.notification-menu__badge {
+  position: absolute;
+  top: -5px;
+  right: -6px;
+  min-width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #bd445c;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.notification-menu__panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 12px);
+  right: -12px;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(520px, calc(100vh - 100px));
+  overflow: auto;
+  border: 1px solid #e4e0da;
+  border-radius: 14px;
+  background: #fff;
+  color: #26231e;
+  box-shadow: 0 16px 42px #26231e24;
+}
+
+.notification-menu__title {
+  margin: 0;
+  padding: 16px 18px;
+  border-bottom: 1px solid #eeeae5;
+  font-size: 16px;
+}
+
+.notification-menu__empty {
+  margin: 0;
+  padding: 24px 18px;
+  color: #77716a;
+  font-size: 14px;
+}
+
+.notification-menu__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notification-menu__item {
+  width: 100%;
+  display: grid;
+  gap: 6px;
+  padding: 14px 18px;
+  border: 0;
+  border-bottom: 1px solid #f0ede9;
+  background: #fff;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notification-menu__item:hover {
+  background: #faf8f6;
+}
+
+.notification-menu__item--unread {
+  background: #f8f4f1;
+}
+
+.notification-menu__message {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.notification-menu__preview,
+.notification-menu__date {
+  color: #77716a;
+  font-size: 12px;
+}
+
+.notification-menu__preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .notification-menu__panel {
+    right: -52px;
+  }
 }
 
 .footer--dark {

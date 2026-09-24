@@ -21,12 +21,13 @@ interface ArticleManagementPageProps {
   categories: ArticleCategory[]
   loading: boolean
   error: string
+  onOpenArticle: (articleId: number) => void
 }
 
 type ArticleStatus = 'Published' | 'Draft'
 const statusOptions: Array<ArticleStatus | 'All'> = ['All', 'Published', 'Draft']
 
-export default function ArticleManagementPage({ onWebsite, onLogout, onCreate, onEdit, onDelete, articles, categories, loading, error }: ArticleManagementPageProps) {
+export default function ArticleManagementPage({ onWebsite, onLogout, onCreate, onEdit, onDelete, articles, categories, loading, error, onOpenArticle }: ArticleManagementPageProps) {
   const toast = useToast()
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<ArticleStatus | 'All'>('All')
@@ -51,7 +52,7 @@ export default function ArticleManagementPage({ onWebsite, onLogout, onCreate, o
   }, [articles, categoryFilter, searchQuery, statusFilter])
 
   return (
-    <AdminLayout onWebsite={onWebsite} onLogout={onLogout}>
+    <AdminLayout onWebsite={onWebsite} onLogout={onLogout} onOpenArticle={onOpenArticle}>
       <main className="article-admin">
         <header className="article-admin__header">
           <h1>Article management</h1>
