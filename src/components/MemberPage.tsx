@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import type { MemberProfile } from '../data/member'
 import { uploadMemberProfileImage } from '../lib/auth'
 import { SiteHeader } from './SiteHeader'
+import { AvatarImage } from './ui/AvatarImage'
+import { PasswordInput } from './ui/PasswordInput'
 import { useToast } from './ui/use-toast'
 
 export type MemberView = 'profile' | 'reset-password'
@@ -15,7 +17,9 @@ interface MemberPageProps {
   onNavigate: (view: MemberView) => void
   onSave: (member: MemberProfile) => Promise<void>
   onPasswordChange: (currentPassword: string, newPassword: string) => Promise<unknown>
+  onAdminPanel?: () => void
   onLogout: () => void
+  onOpenArticle: (articleId: number) => void
 }
 
 function ProfileIcon() {
@@ -26,7 +30,7 @@ function PasswordIcon() {
   return <RotateCcw className="member-menu__icon" size={20} strokeWidth={1.6} aria-hidden="true" />
 }
 
-export default function MemberPage({ member, view, onBack, onNavigate, onSave, onPasswordChange, onLogout }: MemberPageProps) {
+export default function MemberPage({ member, view, onBack, onNavigate, onSave, onPasswordChange, onAdminPanel, onLogout, onOpenArticle }: MemberPageProps) {
   const { t } = useTranslation()
   const toast = useToast()
   const [draft, setDraft] = useState(member)
@@ -114,7 +118,9 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
         onHome={onBack}
         onProfile={() => onNavigate('profile')}
         onResetPassword={() => onNavigate('reset-password')}
+        onAdminPanel={onAdminPanel}
         onLogout={onLogout}
+        onOpenArticle={onOpenArticle}
       />
 
       <div className="member-layout">
@@ -140,17 +146,7 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
             <form className="member-card" onSubmit={handleProfileSave}>
               <div className="member-card__photo">
                 <div className="member-card__avatar">
-                  {draft.avatar ? (
-                    <img src={draft.avatar} alt={t('member.profilePreview')} />
-                  ) : (
-                    <User
-                      className="member-card__avatar-placeholder"
-                      size={56}
-                      strokeWidth={1.4}
-                      role="img"
-                      aria-label={t('member.profilePreview')}
-                    />
-                  )}
+                  <AvatarImage src={draft.avatar} alt={t('member.profilePreview')} />
                 </div>
                 <input
                   ref={fileInputRef}
@@ -192,18 +188,9 @@ export default function MemberPage({ member, view, onBack, onNavigate, onSave, o
           ) : (
             <form className="member-card member-card--password" onSubmit={handlePasswordSave}>
               <h1>{t('common.resetPassword')}</h1>
-              <label className="member-field">
-                <span>{t('member.currentPassword')}</span>
-                <input type="password" name="currentPassword" autoComplete="current-password" required />
-              </label>
-              <label className="member-field">
-                <span>{t('member.newPassword')}</span>
-                <input type="password" name="newPassword" autoComplete="new-password" minLength={8} required />
-              </label>
-              <label className="member-field">
-                <span>{t('member.confirmNewPassword')}</span>
-                <input type="password" name="confirmPassword" autoComplete="new-password" minLength={8} required />
-              </label>
+              <PasswordInput fieldClassName="member-field" label={t('member.currentPassword')} name="currentPassword" autoComplete="current-password" required />
+              <PasswordInput fieldClassName="member-field" label={t('member.newPassword')} name="newPassword" autoComplete="new-password" minLength={8} required />
+              <PasswordInput fieldClassName="member-field" label={t('member.confirmNewPassword')} name="confirmPassword" autoComplete="new-password" minLength={8} required />
               <button type="submit" className="member-card__save">{t('member.save')}</button>
             </form>
           )}

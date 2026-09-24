@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { signInMember, signUpMember, type StoredAuth } from '../lib/auth'
+import { ApiError, requestPasswordRecovery, signInMember, signUpMember, type StoredAuth } from '../lib/auth'
 import { SiteHeader } from './SiteHeader'
+import { PasswordInput } from './ui/PasswordInput'
 
 export type AuthMode = 'signup' | 'login'
 
@@ -17,15 +18,40 @@ export default function AuthPage({ mode, audience = 'member', onBack, onModeChan
   const isSignUp = mode === 'signup' && audience === 'member'
   const { t } = useTranslation()
   const [emailError, setEmailError] = useState('')
+  const [loginError, setLoginError] = useState('')
   const [registrationSuccess, setRegistrationSuccess] = useState(false)
   const [registeredAuth, setRegisteredAuth] = useState<StoredAuth | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [identifier, setIdentifier] = useState('')
+  const [forgotPassword, setForgotPassword] = useState(false)
+  const [recoveryEmail, setRecoveryEmail] = useState('')
+  const [recoverySent, setRecoverySent] = useState(false)
+  const [recoveryError, setRecoveryError] = useState('')
+
+  const handleRecoveryRequest = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSubmitting(true)
+    setRecoveryError('')
+    try {
+      await requestPasswordRecovery(recoveryEmail.trim())
+      setRecoverySent(true)
+    } catch (error) {
+      setRecoveryError(error instanceof ApiError && error.statusCode === 429
+        ? t('auth.tooManyRecoveryRequests')
+        : error instanceof ApiError && error.statusCode === 503
+          ? t('auth.recoveryServiceUnavailable')
+          : t('auth.recoveryRequestFailed'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     setSubmitting(true)
     setEmailError('')
+    setLoginError('')
     try {
       if (isSignUp) {
         const auth = await signUpMember({
@@ -45,7 +71,18 @@ export default function AuthPage({ mode, audience = 'member', onBack, onModeChan
         onAuthenticated(auth)
       }
     } catch (error) {
-      setEmailError(error instanceof Error ? error.message : t('admin.incorrectTitle'))
+      if (isSignUp) {
+        setEmailError(error instanceof Error ? error.message : t('auth.signupFailed'))
+      } else if (error instanceof ApiError) {
+        const messageKey = error.statusCode === 401 ? 'auth.invalidCredentials'
+          : error.statusCode === 403 ? 'auth.adminRequired'
+            : error.statusCode === 429 ? 'auth.tooManyAttempts'
+              : error.statusCode === 503 ? 'auth.serviceUnavailable'
+                : 'auth.loginFailed'
+        setLoginError(t(messageKey))
+      } else {
+        setLoginError(t('auth.connectionError'))
+      }
     } finally {
       setSubmitting(false)
     }
@@ -64,7 +101,29 @@ export default function AuthPage({ mode, audience = 'member', onBack, onModeChan
       </div>
 
       <main className="auth-main">
-        {registrationSuccess ? (
+        {forgotPassword ? (
+          <section className="auth-card auth-card--login">
+            <h1 className="auth-card__title">{t('auth.forgotPassword')}</h1>
+            {recoverySent ? (
+              <p className="auth-recovery__message" role="status">{t('auth.recoverySent')}</p>
+            ) : (
+              <form className="auth-form" onSubmit={handleRecoveryRequest}>
+                <p className="auth-recovery__help">{t('auth.recoveryHelp')}</p>
+                <label className="auth-field">
+                  <span>{t('auth.email')}</span>
+                  <input type="email" value={recoveryEmail} onChange={(event) => setRecoveryEmail(event.target.value)} autoComplete="email" required />
+                </label>
+                {recoveryError && <p className="auth-form__error" role="alert">{recoveryError}</p>}
+                <button type="submit" className="auth-form__submit" disabled={submitting}>
+                  {submitting ? '...' : t('auth.sendRecoveryLink')}
+                </button>
+              </form>
+            )}
+            <button type="button" className="auth-recovery__back" onClick={() => setForgotPassword(false)}>
+              {t('auth.backToLogin')}
+            </button>
+          </section>
+        ) : registrationSuccess ? (
           <section className="auth-card auth-card--success" role="status">
             <div className="auth-success__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
@@ -120,7 +179,11 @@ export default function AuthPage({ mode, audience = 'member', onBack, onModeChan
                 autoComplete={isSignUp ? 'email' : 'username'}
                 aria-invalid={emailError ? 'true' : undefined}
                 aria-describedby={emailError ? 'signup-email-error' : undefined}
-                onInput={() => setEmailError('')}
+                onInput={() => {
+                  setEmailError('')
+                  setLoginError('')
+                }}
+                onChange={(event) => setIdentifier(event.target.value)}
                 required
               />
               {emailError && (
@@ -130,17 +193,33 @@ export default function AuthPage({ mode, audience = 'member', onBack, onModeChan
               )}
             </label>
 
-            <label className="auth-field">
-              <span>{t('auth.password')}</span>
-              <input
-                type="password"
-                name="password"
-                placeholder={t('auth.password')}
-                autoComplete={isSignUp ? 'new-password' : 'current-password'}
-                minLength={8}
-                required
-              />
-            </label>
+            <PasswordInput
+              fieldClassName="auth-field"
+              label={t('auth.password')}
+              name="password"
+              placeholder={t('auth.password')}
+              autoComplete={isSignUp ? 'new-password' : 'current-password'}
+              minLength={8}
+              onInput={() => setLoginError('')}
+              required
+            />
+
+            {!isSignUp && (
+              <button
+                type="button"
+                className="auth-form__forgot"
+                onClick={() => {
+                  setRecoveryEmail(identifier.includes('@') ? identifier : '')
+                  setRecoveryError('')
+                  setRecoverySent(false)
+                  setForgotPassword(true)
+                }}
+              >
+                {t('auth.forgotPassword')}
+              </button>
+            )}
+
+            {loginError && <p className="auth-form__error" role="alert">{loginError}</p>}
 
             <button type="submit" className="auth-form__submit" disabled={submitting}>
               {submitting ? '...' : isSignUp ? t('common.signup') : t('common.login')}

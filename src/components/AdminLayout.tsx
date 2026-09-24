@@ -4,12 +4,15 @@ import {
   ExternalLink,
   LogOut,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { NotificationBell } from './NotificationBell'
 
 interface AdminLayoutProps {
   children: ReactNode
   onArticles?: () => void
   onWebsite: () => void
   onLogout: () => void
+  onOpenArticle?: (articleId: number) => void
 }
 
 export default function AdminLayout({
@@ -17,7 +20,9 @@ export default function AdminLayout({
   onArticles,
   onWebsite,
   onLogout,
+  onOpenArticle = () => undefined,
 }: AdminLayoutProps) {
+  const { t } = useTranslation()
   return (
     <div className="admin-shell">
       <aside className="admin-shell__sidebar" aria-label="Admin navigation">
@@ -26,6 +31,10 @@ export default function AdminLayout({
             oak<span>.</span>
           </button>
           <p className="admin-shell__eyebrow">Admin panel</p>
+          <div className="admin-shell__notifications">
+            <NotificationBell onOpenArticle={onOpenArticle} />
+            <span>{t('common.notifications')}</span>
+          </div>
           <nav className="admin-shell__nav">
             <button
               type="button"

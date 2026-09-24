@@ -28,13 +28,15 @@ const ArticleManagementPage = lazy(() => import('./components/ArticleManagementP
 const ArticleEditorPage = lazy(() => import('./components/ArticleEditorPage'))
 const AuthPage = lazy(() => import('./components/AuthPage'))
 const MemberPage = lazy(() => import('./components/MemberPage'))
+const PasswordResetPage = lazy(() => import('./components/PasswordResetPage'))
 
-const pageFallback = <main className="page">Loading…</main>
+const pageFallback = <main className="page-loading" role="status">Loading…</main>
 
 type AppView =
   | { page: 'home' }
   | { page: 'article'; id: number }
   | { page: 'auth'; mode: AuthMode; audience: 'member' | 'admin' }
+  | { page: 'reset-password' }
   | { page: 'member'; view: MemberView }
   | { page: 'admin-articles' }
   | { page: 'admin-create' }
@@ -47,6 +49,7 @@ function viewFromLocation(): AppView {
   const auth = params.get('auth')
   const articleId = Number(params.get('article'))
 
+  if (auth === 'reset-password') return { page: 'reset-password' }
   if (admin === 'login' || admin === 'signup') {
     return { page: 'auth', mode: admin, audience: 'admin' }
   }
@@ -219,8 +222,19 @@ function App() {
   )
 
   const openAuth = useCallback(
-    (mode: AuthMode) => navigate({ page: 'auth', mode, audience: 'member' }, `?auth=${mode}`),
-    [navigate],
+    (mode: AuthMode) => {
+      const articleId = view.page === 'article'
+        ? view.id
+        : view.page === 'auth'
+          ? Number(new URLSearchParams(window.location.search).get('article'))
+          : null
+      const params = new URLSearchParams({ auth: mode })
+      if (articleId && Number.isSafeInteger(articleId) && articleId > 0) {
+        params.set('article', String(articleId))
+      }
+      navigate({ page: 'auth', mode, audience: 'member' }, `?${params}`)
+    },
+    [navigate, view],
   )
 
   const openMemberView = useCallback((memberView: MemberView) => {
@@ -244,8 +258,13 @@ function App() {
   const authenticateMember = useCallback((auth: StoredAuth) => {
     setCurrentAuth(auth)
     saveAuth(auth)
-    navigate({ page: 'member', view: 'profile' }, '?member=profile')
-  }, [navigate])
+    const articleId = Number(new URLSearchParams(window.location.search).get('article'))
+    if (Number.isSafeInteger(articleId) && articleId > 0) {
+      openArticle(articleId)
+    } else {
+      goHome()
+    }
+  }, [goHome, openArticle])
 
   const logoutMember = useCallback(() => {
     const accessToken = currentAuth?.session.accessToken
@@ -337,6 +356,10 @@ function App() {
 
   if (!authReady) return pageFallback
 
+  if (view.page === 'reset-password') {
+    return <Suspense fallback={pageFallback}><PasswordResetPage onHome={goHome} onLogin={() => openAuth('login')} /></Suspense>
+  }
+
   if (view.page === 'member' && currentMember) {
     return (
       <Suspense fallback={pageFallback}>
@@ -347,7 +370,9 @@ function App() {
           onNavigate={openMemberView}
           onSave={saveMember}
           onPasswordChange={updateMemberPassword}
+          onAdminPanel={canManageArticles(currentAuth?.session.role) ? openArticleManagement : undefined}
           onLogout={logoutMember}
+          onOpenArticle={openArticle}
         />
       </Suspense>
     )
@@ -390,6 +415,7 @@ function App() {
         loading={articlesLoading}
         error={articlesError}
         onLogout={logoutAdmin}
+        onOpenArticle={openArticle}
       /></Suspense>
     )
   }
@@ -413,6 +439,7 @@ function App() {
         onArticles={openArticleManagement}
         onWebsite={goHome}
         onLogout={logoutAdmin}
+        onOpenArticle={openArticle}
         onSave={saveCreatedArticle}
       /></Suspense>
     )
@@ -441,6 +468,7 @@ function App() {
           onArticles={openArticleManagement}
           onWebsite={goHome}
           onLogout={logoutAdmin}
+          onOpenArticle={openArticle}
           onDelete={() => {
             return deleteArticle(article.id).then(openArticleManagement)
           }}
@@ -459,7 +487,9 @@ function App() {
         onAuthNavigate={openAuth}
         onMemberProfile={() => openMemberView('profile')}
         onMemberResetPassword={() => openMemberView('reset-password')}
+        onAdminPanel={canManageArticles(currentAuth?.session.role) ? openArticleManagement : undefined}
         onLogout={logoutMember}
+        onOpenArticle={openArticle}
       /></Suspense>
     )
   }
@@ -473,18 +503,20 @@ function App() {
         onSignUp={() => openAuth('signup')}
         onProfile={() => openMemberView('profile')}
         onResetPassword={() => openMemberView('reset-password')}
+        onAdminPanel={canManageArticles(currentAuth?.session.role) ? openArticleManagement : undefined}
         onLogout={logoutMember}
+        onOpenArticle={openArticle}
       />
 
       <main>
         <HeroSection articles={publishedArticles} onSelectArticle={openArticle} />
 
         <Suspense fallback={pageFallback}>
-          <ArticleSection articles={publishedArticles} categories={categoryList} onSelectArticle={openArticle} />
+          <ArticleSection articles={publishedArticles} categories={categoryList} loading={articlesLoading} onSelectArticle={openArticle} />
         </Suspense>
       </main>
 
-      <Footer action="admin" onAction={() => openAdminAuth('login')} />
+      <Footer />
     </div>
   )
 }

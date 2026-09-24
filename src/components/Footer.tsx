@@ -1,13 +1,12 @@
-import { Briefcase, Code, Globe } from 'lucide-react'
+import { Briefcase, Code, Mail } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 interface FooterProps {
-  action: 'admin' | 'home'
   variant?: 'light' | 'dark'
-  onAction: () => void
+  onHome?: () => void
 }
 
-export function Footer({ action, variant = 'light', onAction }: FooterProps) {
+export function Footer({ variant = 'light', onHome }: FooterProps) {
   const { t } = useTranslation()
   const isDark = variant === 'dark'
 
@@ -16,24 +15,22 @@ export function Footer({ action, variant = 'light', onAction }: FooterProps) {
       <div className="footer__left">
         <span className="footer__label">{t('footer.getInTouch')}</span>
         <div className="footer__social">
-          <a href="#" aria-label="LinkedIn" className={`social-link${isDark ? ' social-link--dark' : ''}`}>
+          <a href="https://www.linkedin.com/in/vutthipatr-chivorarerk-779981206/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className={`social-link${isDark ? ' social-link--dark' : ''}`}>
             <Briefcase aria-hidden="true" />
           </a>
-          <a href="#" aria-label="GitHub" className={`social-link${isDark ? ' social-link--dark' : ''}`}>
+          <a href="https://github.com/vutthipatrchi" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className={`social-link${isDark ? ' social-link--dark' : ''}`}>
             <Code aria-hidden="true" />
           </a>
-          <a href="#" aria-label="Website" className={`social-link${isDark ? ' social-link--dark' : ''}`}>
-            <Globe aria-hidden="true" />
+          <a href="mailto:oak-vutthipatr@hotmail.com" aria-label="Email oak-vutthipatr@hotmail.com" className={`social-link${isDark ? ' social-link--dark' : ''}`}>
+            <Mail aria-hidden="true" />
           </a>
         </div>
       </div>
-      <button
-        type="button"
-        className="footer__home footer__home--btn"
-        onClick={onAction}
-      >
-        {t(action === 'admin' ? 'footer.adminPanel' : 'footer.homePage')}
-      </button>
+      {onHome && (
+        <button type="button" className="footer__home footer__home--btn" onClick={onHome}>
+          {t('footer.homePage')}
+        </button>
+      )}
     </footer>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
+import { AvatarImage } from '@/components/ui/AvatarImage'
 import {
   Select,
   SelectContent,
@@ -18,6 +19,7 @@ import { fetchArticlePage, hasBackendApi } from '@/lib/articles'
 interface ArticleSectionProps {
   articles: Article[]
   categories: ArticleCategory[]
+  loading: boolean
   onSelectArticle: (id: number) => void
 }
 
@@ -55,7 +57,7 @@ function ArticleCard({
       <h3 className="article-card__title">{article.title}</h3>
       <p className="article-card__excerpt">{article.excerpt}</p>
       <div className="article-card__meta">
-        <img src={article.authorAvatar} alt="" className="article-card__avatar" />
+        <AvatarImage src={article.authorAvatar} alt="" className="article-card__avatar" />
         <span className="article-card__author">{article.author}</span>
         <span className="article-card__date">{article.date}</span>
       </div>
@@ -63,7 +65,7 @@ function ArticleCard({
   )
 }
 
-export default function ArticleSection({ articles, categories, onSelectArticle }: ArticleSectionProps) {
+export default function ArticleSection({ articles, categories, loading, onSelectArticle }: ArticleSectionProps) {
   const { t } = useTranslation()
   const [activeCategory, setActiveCategory] = useState('Highlight')
   const categoryNames = useMemo(
@@ -77,11 +79,12 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1)
   const [visibleArticleCount, setVisibleArticleCount] = useState(ARTICLES_PER_PAGE)
   const [pagedArticles, setPagedArticles] = useState<Article[]>(
-    () => articles.filter((article) => article.status === 'published').slice(0, ARTICLES_PER_PAGE),
+    () => hasBackendApi ? [] : articles.filter((article) => article.status === 'published').slice(0, ARTICLES_PER_PAGE),
   )
   const [currentPage, setCurrentPage] = useState(1)
   const [hasNextPage, setHasNextPage] = useState(false)
-  const [loadingPage, setLoadingPage] = useState(false)
+  const [loadingPage, setLoadingPage] = useState(hasBackendApi)
+  const [loadingMore, setLoadingMore] = useState(false)
   const requestIdRef = useRef(0)
 
   const filteredArticles = useMemo(() => {
@@ -117,11 +120,12 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
     : visibleArticles.length < filteredArticles.length
 
   useEffect(() => {
-    if (!hasBackendApi) return
+    if (!hasBackendApi || loading) return
 
     const requestId = ++requestIdRef.current
     const timer = window.setTimeout(() => {
       setLoadingPage(true)
+      setLoadingMore(false)
       fetchArticlePage({
         page: 1,
         limit: ARTICLES_PER_PAGE,
@@ -148,18 +152,18 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
     }, searchQuery.trim() ? 300 : 0)
 
     return () => window.clearTimeout(timer)
-  }, [activeCategory, filteredArticles, searchQuery])
+  }, [activeCategory, filteredArticles, loading, searchQuery])
 
   const loadMoreArticles = async () => {
     if (!hasBackendApi) {
       setVisibleArticleCount((current) => current + ARTICLES_PER_PAGE)
       return
     }
-    if (loadingPage || !hasNextPage) return
+    if (loadingPage || loadingMore || !hasNextPage) return
 
     const nextPage = currentPage + 1
     const requestId = ++requestIdRef.current
-    setLoadingPage(true)
+    setLoadingMore(true)
     try {
       const result = await fetchArticlePage({
         page: nextPage,
@@ -178,12 +182,13 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
     } catch {
       if (requestId === requestIdRef.current) setHasNextPage(true)
     } finally {
-      if (requestId === requestIdRef.current) setLoadingPage(false)
+      if (requestId === requestIdRef.current) setLoadingMore(false)
     }
   }
 
   const selectCategory = (category: string) => {
     setActiveCategory(category)
+    if (hasBackendApi) setLoadingPage(true)
     setVisibleArticleCount(ARTICLES_PER_PAGE)
     setHasNextPage(false)
   }
@@ -239,6 +244,7 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
             value={searchQuery}
             onChange={(event) => {
               setSearchQuery(event.target.value)
+              if (hasBackendApi) setLoadingPage(true)
               setVisibleArticleCount(ARTICLES_PER_PAGE)
               setHasNextPage(false)
               setSearchFocused(true)
@@ -261,6 +267,7 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
                 onSelectArticle(searchSuggestions[activeSuggestionIndex].id)
               } else if (event.key === 'Escape') {
                 setSearchQuery('')
+                if (hasBackendApi) setLoadingPage(true)
                 setVisibleArticleCount(ARTICLES_PER_PAGE)
                 setSearchFocused(false)
                 setActiveSuggestionIndex(-1)
@@ -307,17 +314,24 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
         </div>
       </div>
 
-      <p className="visually-hidden" role="status" aria-live="polite">
-        {t('articles.resultsStatus', { count: hasBackendApi ? visibleArticles.length : filteredArticles.length })}
-      </p>
+      {!loading && !loadingPage && (
+        <p className="visually-hidden" role="status" aria-live="polite">
+          {t('articles.resultsStatus', { count: hasBackendApi ? visibleArticles.length : filteredArticles.length })}
+        </p>
+      )}
 
-      <div className="articles-grid" id="articles-grid">
+      {loading || loadingPage ? (
+        <div className="articles-loading" id="articles-grid" role="status">
+          <span className="articles-loading__spinner" aria-hidden="true" />
+          <span>{t('articles.loading')}</span>
+        </div>
+      ) : <div className="articles-grid" id="articles-grid">
         {visibleArticles.map((article) => (
           <ArticleCard key={article.id} article={article} onSelect={onSelectArticle} />
         ))}
-      </div>
+      </div>}
 
-      {!loadingPage && visibleArticles.length === 0 && (
+      {!loading && !loadingPage && visibleArticles.length === 0 && (
         <p className="articles-empty">
           {searchQuery.trim()
             ? t('articles.emptyWithQuery', { query: searchQuery.trim() })
@@ -325,15 +339,15 @@ export default function ArticleSection({ articles, categories, onSelectArticle }
         </p>
       )}
 
-      {hasMoreArticles && (
+      {!loading && !loadingPage && hasMoreArticles && (
         <div className="view-more">
           <button
             type="button"
             className="view-more__link"
-            disabled={loadingPage}
+            disabled={loadingMore}
             onClick={() => { void loadMoreArticles() }}
           >
-            {t('articles.viewMore')}
+            {loadingMore ? t('articles.loading') : t('articles.viewMore')}
           </button>
         </div>
       )}

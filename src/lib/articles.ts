@@ -175,15 +175,64 @@ export async function deleteArticle(id: number): Promise<void> {
   }
 }
 
-export async function createArticleComment(articleId: number, text: string): Promise<Comment> {
+export async function createArticleComment(articleId: number, text: string, replyToCommentId?: number): Promise<Comment> {
   if (!apiBaseUrl) throw new Error('VITE_API_BASE_URL is not configured.')
   try {
     const response = await axios.post<{ comment: Comment }>(
       `${apiBaseUrl}/api/articles/${articleId}/comments`,
-      { text },
+      { text, ...(replyToCommentId ? { replyToCommentId } : {}) },
       { headers: authorizationHeaders() },
     )
     return response.data.comment
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
+export async function toggleCommentLike(articleId: number, commentId: number): Promise<{ liked: boolean; likes: number }> {
+  if (!apiBaseUrl) throw new Error('VITE_API_BASE_URL is not configured.')
+  try {
+    const response = await axios.post<{ liked: boolean; likes: number }>(
+      `${apiBaseUrl}/api/articles/${articleId}/comments/${commentId}/like`,
+      undefined,
+      { headers: authorizationHeaders() },
+    )
+    return response.data
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
+export type NotificationEvent = 'new_comment' | 'article_like' | 'comment_reply' | 'comment_like'
+
+export interface AppNotification {
+  id: number
+  eventType: NotificationEvent
+  actorName: string
+  articleId: number
+  articleTitle: string
+  commentId: number | null
+  commentPreview: string | null
+  createdAt: string
+  readAt: string | null
+}
+
+export async function fetchNotifications(): Promise<{ notifications: AppNotification[]; unreadCount: number }> {
+  if (!apiBaseUrl) throw new Error('VITE_API_BASE_URL is not configured.')
+  try {
+    const response = await axios.get<{ notifications: AppNotification[]; unreadCount: number }>(
+      `${apiBaseUrl}/api/notifications`, { headers: authorizationHeaders() },
+    )
+    return response.data
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
+export async function markNotificationsRead(): Promise<void> {
+  if (!apiBaseUrl) throw new Error('VITE_API_BASE_URL is not configured.')
+  try {
+    await axios.patch(`${apiBaseUrl}/api/notifications/read`, undefined, { headers: authorizationHeaders() })
   } catch (error) {
     throw toApiError(error)
   }
