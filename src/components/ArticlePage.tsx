@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ThumbsUp } from 'lucide-react'
 import { splitArticleParagraphs } from '@/lib/articleContent'
-import type { Article } from '../data/articles'
+import type { Article, Comment } from '../data/articles'
 import type { MemberProfile } from '../data/member'
-import { createArticleComment, toggleArticleLike } from '../lib/articles'
+import { createArticleComment, toggleArticleLike, toggleCommentLike } from '../lib/articles'
 import type { AuthMode } from './AuthPage'
 import { Footer } from './Footer'
 import { SiteHeader } from './SiteHeader'
+import { AvatarImage } from './ui/AvatarImage'
 
 interface ArticlePageProps {
   article: Article
@@ -15,7 +17,9 @@ interface ArticlePageProps {
   onAuthNavigate: (mode: AuthMode) => void
   onMemberProfile: () => void
   onMemberResetPassword: () => void
+  onAdminPanel?: () => void
   onLogout: () => void
+  onOpenArticle: (articleId: number) => void
 }
 
 function SmileIcon() {
@@ -46,7 +50,7 @@ function LinkIcon() {
 function FacebookIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+      <path d="M16.5 2H14c-3.3 0-5.4 2.1-5.4 5.5V10H6v4h2.6v8h4.2v-8h3.1l.6-4h-3.7V7.8c0-1.3.4-1.8 1.7-1.8h2V2Z" />
     </svg>
   )
 }
@@ -59,12 +63,21 @@ function LinkedInIcon() {
   )
 }
 
-function TwitterIcon() {
+function XIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
     </svg>
   )
+}
+
+function formatCommentDate(value: string, language: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat(language, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
 }
 
 export default function ArticlePage({
@@ -74,13 +87,17 @@ export default function ArticlePage({
   onAuthNavigate,
   onMemberProfile,
   onMemberResetPassword,
+  onAdminPanel,
   onLogout,
+  onOpenArticle,
 }: ArticlePageProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [likes, setLikes] = useState(article.likes)
   const [liked, setLiked] = useState(false)
   const [comments, setComments] = useState(article.comments)
   const [commentText, setCommentText] = useState('')
+  const [replyingTo, setReplyingTo] = useState<number | null>(null)
+  const [replyText, setReplyText] = useState('')
   const [interactionError, setInteractionError] = useState('')
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [showCommentAuth, setShowCommentAuth] = useState(false)
@@ -149,6 +166,71 @@ export default function ArticlePage({
     }
   }
 
+  const handleSendReply = async (e: FormEvent, parentId: number) => {
+    e.preventDefault()
+    if (!member) { setShowCommentAuth(true); return }
+    const text = replyText.trim()
+    if (!text) return
+    setInteractionError('')
+    try {
+      const comment = await createArticleComment(article.id, text, parentId)
+      setComments((current) => [...current, comment])
+      setReplyText('')
+      setReplyingTo(null)
+    } catch (error) {
+      setInteractionError(error instanceof Error ? error.message : 'Unable to post reply.')
+    }
+  }
+
+  const handleCommentLike = async (commentId: number) => {
+    if (!member) { setShowCommentAuth(true); return }
+    try {
+      const result = await toggleCommentLike(article.id, commentId)
+      setComments((current) => current.map((comment) => comment.id === commentId
+        ? { ...comment, likes: result.likes, liked: result.liked }
+        : comment))
+    } catch (error) {
+      setInteractionError(error instanceof Error ? error.message : 'Unable to update comment like.')
+    }
+  }
+
+  const renderComment = (comment: Comment): ReactNode => (
+    <li key={comment.id} className={`comment-item${comment.parentId ? ' comment-item--reply' : ''}`}>
+      <AvatarImage src={comment.avatar} alt="" className="comment-item__avatar" />
+      <div className="comment-item__content">
+        <div className="comment-item__header">
+          <span className="comment-item__author">{comment.author}</span>
+          <time className="comment-item__date" dateTime={comment.date}>
+            {formatCommentDate(comment.date, i18n.language)}
+          </time>
+        </div>
+        <p className="comment-item__text">{comment.text}</p>
+        <div className="comment-item__actions">
+          <button
+            type="button"
+            className={`comment-item__action comment-item__action--like${comment.liked ? ' comment-item__action--liked' : ''}`}
+            aria-label={t('article.likeComment')}
+            aria-pressed={Boolean(comment.liked)}
+            onClick={() => void handleCommentLike(comment.id)}
+          >
+            <ThumbsUp size={16} aria-hidden="true" />
+            <span>{comment.likes ?? 0}</span>
+          </button>
+          {!comment.parentId && <button type="button" className="comment-item__action" onClick={() => { setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText('') }}>{t('article.reply')}</button>}
+        </div>
+        {replyingTo === comment.id && (
+          <form className="comment-reply-form" onSubmit={(event) => void handleSendReply(event, comment.id)}>
+            <textarea className="comment-form__input" rows={2} placeholder={t('article.replyPlaceholder')} value={replyText} onChange={(event) => setReplyText(event.target.value)} />
+            <button type="submit" className="comment-form__send">{t('article.send')}</button>
+          </form>
+        )}
+        {comments.filter((reply) => reply.parentId === comment.id).length > 0 && (
+          <ul className="comments__replies">{comments.filter((reply) => reply.parentId === comment.id).map(renderComment)}</ul>
+        )}
+      </div>
+    </li>
+  )
+
   const handleModalBackdrop = (event: MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) setShowCommentAuth(false)
   }
@@ -164,7 +246,9 @@ export default function ArticlePage({
           onSignUp={() => onAuthNavigate('signup')}
           onProfile={onMemberProfile}
           onResetPassword={onMemberResetPassword}
+          onAdminPanel={onAdminPanel}
           onLogout={onLogout}
+          onOpenArticle={onOpenArticle}
         />
 
         <article className="article-detail">
@@ -237,14 +321,14 @@ export default function ArticlePage({
                   <span>{t(`article.${copyStatus === 'idle' ? 'copyLink' : copyStatus}`)}</span>
                 </button>
                 <div className="article-detail__social">
-                  <a href="#" aria-label={t('article.shareFacebook')} className="social-share social-share--facebook">
+                  <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="social-share social-share--facebook">
                     <FacebookIcon />
                   </a>
-                  <a href="#" aria-label={t('article.shareLinkedIn')} className="social-share social-share--linkedin">
+                  <a href="https://www.linkedin.com/in/vutthipatr-chivorarerk-779981206/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="social-share social-share--linkedin">
                     <LinkedInIcon />
                   </a>
-                  <a href="#" aria-label={t('article.shareX')} className="social-share social-share--twitter">
-                    <TwitterIcon />
+                  <a href="https://x.com/" target="_blank" rel="noopener noreferrer" aria-label="X" className="social-share social-share--x">
+                    <XIcon />
                   </a>
                 </div>
               </div>
@@ -273,22 +357,7 @@ export default function ArticlePage({
                 )}
 
                 <ul className="comments__list">
-                  {comments.map((comment) => (
-                    <li key={comment.id} className="comment-item">
-                      <img
-                        src={comment.avatar}
-                        alt=""
-                        className="comment-item__avatar"
-                      />
-                      <div className="comment-item__content">
-                        <div className="comment-item__header">
-                          <span className="comment-item__author">{comment.author}</span>
-                          <time className="comment-item__date">{comment.date}</time>
-                        </div>
-                        <p className="comment-item__text">{comment.text}</p>
-                      </div>
-                    </li>
-                  ))}
+                  {comments.filter((comment) => !comment.parentId).map(renderComment)}
                 </ul>
               </section>
             </div>
@@ -297,7 +366,7 @@ export default function ArticlePage({
               <div className="author-card">
                 <span className="author-card__label">{t('article.author')}</span>
                 <div className="author-card__profile">
-                  <img
+                  <AvatarImage
                     src={article.authorAvatar}
                     alt=""
                     className="author-card__avatar"
@@ -314,7 +383,7 @@ export default function ArticlePage({
           </div>
         </article>
 
-        <Footer action="home" variant="dark" onAction={onBack} />
+        <Footer variant="dark" onHome={onBack} />
       </div>
 
       {showCommentAuth && (

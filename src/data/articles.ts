@@ -19,6 +19,9 @@ export interface Comment {
   avatar: string
   date: string
   text: string
+  parentId?: number | null
+  likes?: number
+  liked?: boolean
 }
 
 export interface Article {

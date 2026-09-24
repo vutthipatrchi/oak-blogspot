@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { ChevronDown, LogOut, RotateCcw, User } from 'lucide-react'
+import { ChevronDown, LayoutDashboard, LogOut, RotateCcw, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { MemberProfile } from '../data/member'
+import { AvatarImage } from './ui/AvatarImage'
 
 interface ProfileMenuProps {
   member: MemberProfile
@@ -11,6 +12,7 @@ interface ProfileMenuProps {
   chevronClassName?: string
   onProfile: () => void
   onResetPassword: () => void
+  onAdminPanel?: () => void
   onLogout: () => void
 }
 
@@ -22,6 +24,7 @@ export function ProfileMenu({
   chevronClassName,
   onProfile,
   onResetPassword,
+  onAdminPanel,
   onLogout,
 }: ProfileMenuProps) {
   const [open, setOpen] = useState(false)
@@ -68,7 +71,7 @@ export function ProfileMenu({
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
       >
-        <img src={member.avatar} alt="" className={avatarClassName} />
+        <AvatarImage src={member.avatar} alt="" className={avatarClassName} />
         <span className={nameClassName}>{member.name}</span>
         <ChevronDown className={chevronClassName} aria-hidden="true" />
       </button>
@@ -88,6 +91,12 @@ export function ProfileMenu({
             <RotateCcw size={20} strokeWidth={1.6} aria-hidden="true" />
             <span>{t('common.resetPassword')}</span>
           </button>
+          {onAdminPanel && (
+            <button type="button" className="profile-menu__item" role="menuitem" onClick={() => runAction(onAdminPanel)}>
+              <LayoutDashboard size={20} strokeWidth={1.6} aria-hidden="true" />
+              <span>{t('common.adminPanel')}</span>
+            </button>
+          )}
           <button
             type="button"
             className="profile-menu__item profile-menu__item--danger"

@@ -1,8 +1,8 @@
-import { Bell } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { MemberProfile } from '../data/member'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { ProfileMenu } from './ProfileMenu'
+import { NotificationBell } from './NotificationBell'
 
 interface SiteHeaderProps {
   member?: MemberProfile | null
@@ -14,7 +14,9 @@ interface SiteHeaderProps {
   onSignUp?: () => void
   onProfile?: () => void
   onResetPassword?: () => void
+  onAdminPanel?: () => void
   onLogout?: () => void
+  onOpenArticle?: (articleId: number) => void
 }
 
 export function SiteHeader({
@@ -27,7 +29,9 @@ export function SiteHeader({
   onSignUp,
   onProfile,
   onResetPassword,
+  onAdminPanel,
   onLogout,
+  onOpenArticle = () => undefined,
 }: SiteHeaderProps) {
   const { t } = useTranslation()
   const isDark = variant === 'dark'
@@ -46,18 +50,13 @@ export function SiteHeader({
       {member && onProfile && onResetPassword && onLogout ? (
         <div className="site-header__actions">
           <LanguageSwitcher variant={variant} />
-          <button
-            type="button"
-            className="site-header__notification"
-            aria-label={t('common.notifications')}
-          >
-            <Bell size={20} strokeWidth={1.7} aria-hidden="true" />
-          </button>
+          <NotificationBell onOpenArticle={onOpenArticle} />
           <ProfileMenu
             member={member}
             buttonClassName="site-header__profile"
             onProfile={onProfile}
             onResetPassword={onResetPassword}
+            onAdminPanel={onAdminPanel}
             onLogout={onLogout}
           />
         </div>

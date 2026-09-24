@@ -34,6 +34,7 @@ interface SharedProps {
   onLogout: () => void
   onSave: (article: ArticleWriteInput) => Promise<void>
   onCreateCategory: (name: string) => Promise<ArticleCategory>
+  onOpenArticle: (articleId: number) => void
 }
 
 type ArticleEditorPageProps = SharedProps & (
@@ -259,7 +260,7 @@ export default function ArticleEditorPage(props: ArticleEditorPageProps) {
   }
 
   return (
-    <AdminLayout onArticles={onArticles} onWebsite={onWebsite} onLogout={onLogout}>
+    <AdminLayout onArticles={onArticles} onWebsite={onWebsite} onLogout={onLogout} onOpenArticle={props.onOpenArticle}>
       <main className="create-article">
         <header className="create-article__header">
           <h1>{mode === 'create' ? 'Create article' : 'Edit article'}</h1>

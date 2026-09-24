@@ -13,7 +13,7 @@ const page = window.location.pathname === '/health-test'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Suspense fallback={<main className="page">Loading…</main>}>
+    <Suspense fallback={<main className="page-loading" role="status">Loading…</main>}>
       <ToastProvider>{page}</ToastProvider>
     </Suspense>
   </StrictMode>,

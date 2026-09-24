@@ -12,6 +12,16 @@ export interface AuthSession {
 
 export type UserRole = 'owner' | 'admin' | 'member'
 
+export class ApiError extends Error {
+  statusCode?: number
+
+  constructor(message: string, statusCode?: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.statusCode = statusCode
+  }
+}
+
 export function canManageArticles(role: UserRole | undefined): boolean {
   return role === 'owner' || role === 'admin'
 }
@@ -34,7 +44,7 @@ function apiUrl(path: string) {
 
 export function toApiError(error: unknown): Error {
   if (axios.isAxiosError<{ error?: string }>(error) && error.response) {
-    return new Error(error.response.data?.error ?? `Backend API returned ${error.response.status}.`)
+    return new ApiError(error.response.data?.error ?? `Backend API returned ${error.response.status}.`, error.response.status)
   }
   return error instanceof Error ? error : new Error('Backend API request failed.')
 }
@@ -64,7 +74,7 @@ async function authRequest<T>(path: string, data?: unknown, method: 'GET' | 'POS
       method,
       data,
       withCredentials: true,
-      headers: path === '/api/auth/signup' || path === '/api/auth/login' || path === '/api/auth/refresh'
+      headers: ['/api/auth/signup', '/api/auth/login', '/api/auth/refresh', '/api/auth/recover', '/api/auth/recover/complete'].includes(path)
         ? undefined
         : authorizationHeaders(),
     })
@@ -80,6 +90,14 @@ export function signUpMember(input: { name: string; username: string; email: str
 
 export function signInMember(identifier: string, password: string, audience: 'member' | 'admin') {
   return authRequest<StoredAuth>('/api/auth/login', { identifier, password, audience })
+}
+
+export function requestPasswordRecovery(email: string): Promise<{ message: string }> {
+  return authRequest('/api/auth/recover', { email })
+}
+
+export function completePasswordRecovery(refreshToken: string, newPassword: string): Promise<{ message: string }> {
+  return authRequest('/api/auth/recover/complete', { refreshToken, newPassword })
 }
 
 export function refreshAuth(): Promise<StoredAuth> {
