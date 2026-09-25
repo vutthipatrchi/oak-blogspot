@@ -77,18 +77,47 @@
 }
 
 .site-header__logo {
+  flex: 0 0 auto;
   padding: 0;
   border: 0;
   background: transparent;
   color: #26231e;
-  font: inherit;
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
   cursor: pointer;
 }
 
-.site-header__logo span {
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+
+.brand-logo__mark {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+}
+
+.brand-logo__wordmark {
+  display: flex;
+  flex-direction: column;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.brand-logo__top {
+  font-size: 14px;
+}
+
+.brand-logo__bottom {
+  margin-top: 2px;
+  font-size: 23px;
+}
+
+.brand-logo__period {
   color: #12b886;
 }
 
@@ -659,15 +688,7 @@
   border: 0;
   background: transparent;
   color: #43403b;
-  font-size: 42px;
-  font-weight: 400;
-  line-height: 1;
-  letter-spacing: -0.04em;
   cursor: pointer;
-}
-
-.admin-shell__brand span {
-  color: #12b886;
 }
 
 .admin-shell__eyebrow {
@@ -2199,6 +2220,15 @@
 }
 
 @media (max-width: 480px) {
+  .site-header {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .site-header__actions {
+    width: 100%;
+  }
+
   .admin-shell__footer {
     grid-template-columns: 1fr;
   }
