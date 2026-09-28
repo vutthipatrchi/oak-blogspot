@@ -3,6 +3,7 @@ import type { MemberProfile } from '../data/member'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { ProfileMenu } from './ProfileMenu'
 import { NotificationBell } from './NotificationBell'
+import { BrandLogo } from './BrandLogo'
 
 interface SiteHeaderProps {
   member?: MemberProfile | null
@@ -44,7 +45,7 @@ export function SiteHeader({
   return (
     <header className={headerClassName}>
       <button type="button" className="site-header__logo" onClick={onHome}>
-        oak<span>.</span>
+        <BrandLogo />
       </button>
 
       {member && onProfile && onResetPassword && onLogout ? (
